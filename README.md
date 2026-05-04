@@ -1,10 +1,10 @@
- 📚 StudyBuddy (Sistema inteligente de productividad y enfoque para estudiantes)
+ #📚 StudyBuddy (Sistema inteligente de productividad y enfoque para estudiantes)
 
+##📖 Descripción del proyecto
 
-El presente SISTEMA es el desarrollo de una aplicación
+El presente Sistema es el desarrollo de una aplicación
 web llamada StudyBuddy, la cual busca no solo apoyar la organización de tareas, sino también analizar el comportamiento del usuario durante sus sesiones de estudio. El sistema permitirá identificar patrones de productividad, medir el tiempo de estudio,trabajo desarrollo de actividades y proporcionar retroalimentación útil donde podrá ver su comportamiento de aprendizaje.
 Como valor agregado, la aplicación incorporará elementos de gamificación, como un sistema de rachas y una mascota virtual que interactúa con el usuario, con el objetivo de incentivar la constancia y generar una experiencia más dinámica y motivadora.
----
 
 🚀 Descripción del proyecto
 
@@ -52,8 +52,10 @@ Se utiliza PostgreSQL como sistema de gestión de base de datos.
  🔹 Configuración de conexión
 
 ```python
-DATABASE_URL = "postgresql://admin:1004533363@localhost:5432/studybuddy"
+DATABASE_URL=postgresql://<usuario>:<password>@localhost:5432/studybuddy
 ```
+La conexión a la base de datos se gestiona mediante variables de entorno (.env) para evitar exponer credenciales sensibles en el repositorio.
+
  🔹 Modelo principal
 
 Entidad: **Task**
