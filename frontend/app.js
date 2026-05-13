@@ -1,38 +1,16 @@
 const API_URL = "http://127.0.0.1:8000";
 
-// 🔹 Obtener tareas
-async function getTasks() {
-    const response = await fetch(`${API_URL}/tasks`);
-    const data = await response.json();
+// 🔐 Control de sesión (UNA sola vez)
+const user = localStorage.getItem("user");
 
-    const list = document.getElementById("taskList");
-    list.innerHTML = "";
+if (!user) {
+    window.location.href = "login.html";
+}
 
-    data.forEach(task => {
-        const li = document.createElement("li");
-
-        // texto de la tarea
-        const text = document.createElement("span");
-        text.textContent = task.title;
-
-        // botón eliminar
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Eliminar";
-        deleteBtn.style.marginLeft = "10px";
-        deleteBtn.onclick = () => deleteTask(task.id);
-
-        // botón editar
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "Editar";
-        editBtn.style.marginLeft = "10px";
-        editBtn.onclick = () => updateTask(task.id);
-
-        li.appendChild(text);
-        li.appendChild(deleteBtn);
-        li.appendChild(editBtn);
-
-        list.appendChild(li);
-    });
+// 🔓 Logout
+function logout() {
+    localStorage.removeItem("user");
+    window.location.href = "login.html";
 }
 
 // 🔹 Crear tarea
@@ -57,31 +35,20 @@ async function createTask() {
     getTasks();
 }
 
-// 🔹 Eliminar tarea
-async function deleteTask(id) {
-    await fetch(`${API_URL}/tasks/${id}`, {
-        method: "DELETE"
-    });
+// 🔹 Obtener tareas
+async function getTasks() {
+    const response = await fetch(`${API_URL}/tasks`);
+    const data = await response.json();
 
-    getTasks();
+    const list = document.getElementById("taskList");
+    list.innerHTML = "";
+
+    data.forEach(task => {
+        const li = document.createElement("li");
+        li.textContent = task.title;
+        list.appendChild(li);
+    });
 }
 
-// 🔹 Actualizar tarea
-async function updateTask(id) {
-    const newTitle = prompt("Nuevo nombre de la tarea:");
-
-    if (!newTitle) return;
-
-    await fetch(`${API_URL}/tasks/${id}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ title: newTitle })
-    });
-
-    getTasks();
-}
-
-// cargar tareas al iniciar
+// 🚀 iniciar
 getTasks();

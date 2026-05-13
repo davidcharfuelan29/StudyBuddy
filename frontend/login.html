@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>StudyBuddy</title>
+<link rel="stylesheet" href="login.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="container">
+
+    <!-- IZQUIERDA -->
+    <div class="left">
+        
+    <img src="assets/imagenes/mascot.png" class="mascot-bg">
+        <div class="logo">
+    <img src="assets/imagenes/logo.png" alt="Logo StudyBuddy" class="logo-img">
+    <span>Study<span class="highlight">Buddy</span></span>
+    </div>
+
+        <h1>
+            Tu compañero de estudio<br>
+            para alcanzar <span>tus metas 🚀</span>
+        </h1>
+
+        <p>Organiza tus tareas, mantén el enfoque y mejora tu productividad cada día.</p>
+
+        
+        <div class="features">
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-task.svg" class="feature-icon">
+                <p>Organiza</p>
+            </div>
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-focus.svg" class="feature-icon">
+                <p>Enfócate</p>
+            </div>
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-analytics.svg" class="feature-icon">
+                <p>Analiza</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DERECHA -->
+    <div class="right">
+
+        <h2 id="title">¡Bienvenido a tu mejor version! 👋</h2>
+        <p class="subtitle">
+        Inicia sesión para continuar con tu productividad.
+        </p>
+
+        <form id="form">
+
+            <div class="input-group">
+                <img src="assets/iconos/icon-mail.svg" class="input-icon">
+                <input type="email" id="email" required>
+                <label>Correo electrónico</label>
+            </div>
+
+            <div class="input-group password">
+                <img src="assets/iconos/icon-lock.svg" class="input-icon">
+                <input type="password" id="password" required>
+                <label>Contraseña</label>
+                <img src="assets/iconos/icon-eye.svg" class="eye" onclick="togglePassword()">
+            </div>
+
+            <button type="submit" id="submitBtn">Iniciar sesión</button>
+
+            <div class="divider">
+                <span></span>
+                <p>o continuar con</p>
+                <span></span>
+            </div>
+
+            <div class="social-login">
+                <button type="button" class="social-btn">
+                    <img src="assets/imagenes/google.png"> Google
+                </button> 
+
+            </div>
+
+        </form>
+
+        <p class="switch">
+            ¿No tienes cuenta? <span id="switchMode">Regístrate</span>
+        </p>
+
+        <p id="message"></p>
+
+    </div>
+
+</div>
+
+<script src="login.js"></script>
+</body>
+</html>

@@ -1,14 +1,25 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .database import SessionLocal, engine
-from .models import Task, Base
+from passlib.context import CryptContext
+
+from .database import SessionLocal, engine, Base
+from .models import Task, User
 
 app = FastAPI()
 
-# Crear tablas
+# 🔐 HASH CONFIG
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
+# 🧱 CREAR TABLAS
 Base.metadata.create_all(bind=engine)
 
-# CORS
+# 🌐 CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,13 +28,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Home
+# 🏠 HOME
 @app.get("/")
 def home():
     return {"message": "StudyBuddy API funcionando"}
 
 
-# Obtener tareas
+# 🔐 REGISTER
+@app.post("/register")
+def register(user: dict):
+    db = SessionLocal()
+
+    existing_user = db.query(User).filter(User.email == user["email"]).first()
+    if existing_user:
+        db.close()
+        raise HTTPException(status_code=400, detail="Usuario ya existe")
+
+    hashed_password = hash_password(user["password"])
+
+    new_user = User(
+        email=user["email"],
+        password=hashed_password
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    db.close()
+
+    return {"message": "Usuario creado"}
+
+
+# 🔑 LOGIN
+@app.post("/login")
+def login(user: dict):
+    db = SessionLocal()
+
+    db_user = db.query(User).filter(User.email == user["email"]).first()
+
+    if not db_user:
+        db.close()
+        raise HTTPException(status_code=400, detail="Usuario no existe")
+
+    if not verify_password(user["password"], db_user.password):
+        db.close()
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+
+    db.close()
+
+    return {
+        "message": "Login exitoso",
+        "user": {
+            "id": db_user.id,
+            "email": db_user.email
+        }
+    }
+
+
+# 📋 TASKS
+
 @app.get("/tasks")
 def get_tasks():
     db = SessionLocal()
@@ -32,7 +95,6 @@ def get_tasks():
     return [{"id": t.id, "title": t.title} for t in tasks]
 
 
-# Crear tarea
 @app.post("/tasks")
 def create_task(task: dict):
     db = SessionLocal()
@@ -41,10 +103,13 @@ def create_task(task: dict):
     db.commit()
     db.refresh(new_task)
     db.close()
-    return {"message": "Tarea creada", "task": {"id": new_task.id, "title": new_task.title}}
+
+    return {
+        "message": "Tarea creada",
+        "task": {"id": new_task.id, "title": new_task.title}
+    }
 
 
-# Obtener tarea por ID
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
     db = SessionLocal()
@@ -57,7 +122,6 @@ def get_task(task_id: int):
     return {"id": task.id, "title": task.title}
 
 
-# Actualizar tarea
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, updated_task: dict):
     db = SessionLocal()
@@ -72,10 +136,12 @@ def update_task(task_id: int, updated_task: dict):
     db.refresh(task)
     db.close()
 
-    return {"message": "Tarea actualizada", "task": {"id": task.id, "title": task.title}}
+    return {
+        "message": "Tarea actualizada",
+        "task": {"id": task.id, "title": task.title}
+    }
 
 
-# Eliminar tarea
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     db = SessionLocal()
@@ -89,4 +155,7 @@ def delete_task(task_id: int):
     db.commit()
     db.close()
 
-    return {"message": "Tarea eliminada", "task": {"id": task.id, "title": task.title}}
+    return {
+        "message": "Tarea eliminada",
+        "task": {"id": task.id, "title": task.title}
+    }
