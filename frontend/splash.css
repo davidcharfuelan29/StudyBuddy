@@ -1,0 +1,216 @@
+:root {
+    --bg-dark: #0b0f2a;
+    --primary: #7c5cff;
+    --primary-glow: #9b7bff;
+    --text-light: #ffffff;
+    --text-muted: #b8b8d1;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #141a3a 0%, var(--bg-dark) 70%);
+    font-family: "Poppins", sans-serif;
+    color: var(--text-light);
+    overflow: hidden;
+}
+
+/* PARTICULAS */
+
+#particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+/* CONTENEDOR */
+
+.splash-container {
+    position: relative;
+    z-index: 2;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    width: 100%;
+    height: 100vh;
+
+    gap: 0px;
+
+    animation: fadeIn 1s ease forwards;
+}
+
+/* LOGO */
+
+.logo {
+    width: 95px;
+
+    margin-bottom: 8px;
+
+    animation:
+        float 3s ease-in-out infinite,
+        pulseGlow 3s infinite;
+
+    filter: drop-shadow(0 0 18px rgba(124,92,255,0.55));
+}
+
+/* TITULO */
+.title {
+    font-size: 58px;
+
+    font-weight: 700;
+
+    letter-spacing: -1px;
+
+    background: linear-gradient(
+        90deg,
+        #ffffff,
+        #d6cbff,
+        #9b7bff
+    );
+
+    background-size: 200% auto;
+
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation: glowText 5s linear infinite;
+
+    text-shadow:
+        0 0 18px rgba(124,92,255,0.18);
+}
+
+/* SUBTITULO */
+.subtitle {
+    font-size: 16px;
+
+    font-weight: 400;
+
+    color: rgba(255,255,255,0.68);
+
+    letter-spacing: 0.5px;
+}
+
+/* IMAGEN CENTRAL */
+
+.mascot {
+    width: 500px;
+    max-width: 80%;
+
+    margin: 0px 0;
+
+    animation: float 3s ease-in-out infinite;
+
+    filter: drop-shadow(0 0 25px rgba(124, 92, 255, 0.35));
+}
+
+/* TEXTO LOADING */
+
+.loading-text {
+    color: var(--text-light);
+
+    font-size: 13px;
+
+    opacity: 0.75;
+
+    letter-spacing: 0.5px;
+}
+
+/* BARRA */
+
+.loader {
+    width: 360px;
+    height: 10px;
+
+    background: #1a1f3d;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    width: 0%;
+
+    background: linear-gradient(
+        90deg,
+        var(--primary),
+        var(--primary-glow)
+    );
+
+    border-radius: 20px;
+
+    animation: loading 5s ease forwards;
+}
+
+/* ANIMACIONES */
+
+@keyframes loading {
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+@keyframes glowText {
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+@keyframes pulseGlow {
+
+    0% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 28px rgba(124,92,255,0.8));
+    }
+
+    100% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+}

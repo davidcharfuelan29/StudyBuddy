@@ -1,23 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <meta charset="UTF-8">
     <title>StudyBuddy</title>
+    <link rel="stylesheet" href="splash.css">
 </head>
+
 <body>
 
-<h1>StudyBuddy</h1>
+    <canvas id="particles"></canvas>
+    
+<div class="splash-container">
 
-<button onclick="logout()">Cerrar sesión</button>
+    <img src="assets/imagenes/logo.png" class="logo" alt="Logo">
 
-<h2>Crear tarea</h2>
+    <h1 class="title">StudyBuddy</h1>
+    <p class="subtitle"> Sistema inteligente de productividad para estudiantes</p>
+    
+     <!-- IMAGEN CENTRAL -->
+    <img src="assets/imagenes/splash.png" class="mascot">
 
-<input type="text" id="title" placeholder="Nombre de la tarea">
-<button onclick="createTask()">Crear</button>
+    <p class="loading-text">
+        Cargando tu espacio de estudio...</p>
 
-<h2>Lista de tareas</h2>
-<ul id="taskList"></ul>
+    <div class="loader">
+        <div class="progress"></div>
+    </div>
 
-<script src="app.js"></script>
+</div>
 
+<script src="splash.js"></script>
 </body>
 </html>

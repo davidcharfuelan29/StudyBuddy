@@ -1,11 +1,20 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+import os
 from .database import SessionLocal, engine, Base
 from .models import Task, User
 
+
 app = FastAPI()
+
+# 📁 Ruta base del proyecto
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 📁 Servir frontend
+app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
 
 # 🔐 HASH CONFIG
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,7 +40,7 @@ app.add_middleware(
 # 🏠 HOME
 @app.get("/")
 def home():
-    return {"message": "StudyBuddy API funcionando"}
+    return RedirectResponse(url="/frontend/index.html")
 
 
 # 🔐 REGISTER

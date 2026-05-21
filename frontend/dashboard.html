@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StudyBuddy Dashboard</title>
+
+    <!-- Poppins -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Remix Icons -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="dashboard.css">
+
+</head>
+
+<body>
+
+    <!-- BACKGROUND -->
+    <div class="background-blobs">
+
+        <div class="blob blob1"></div>
+        <div class="blob blob2"></div>
+        <div class="blob blob3"></div>
+
+    </div>
+
+    <!-- PARTICLES -->
+    <canvas id="particles"></canvas>
+
+    <!-- APP -->
+    <div class="app-container">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <div>
+
+                <!-- TOGGLE -->
+                <button class="sidebar-toggle" id="sidebarToggle">
+
+                    <i class="ri-menu-4-line"></i>
+
+                </button>
+
+                <!-- LOGO -->
+                <div class="logo">
+
+                    <i class="ri-ghost-2-fill"></i>
+                    <span>StudyBuddy</span>
+
+                </div>
+
+                <!-- MENU -->
+                <nav class="menu">
+
+                    <a href="#" class="active">
+
+                        <i class="ri-home-5-fill"></i>
+                        <span>Inicio</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-task-line"></i>
+                        <span>Tareas</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-timer-flash-line"></i>
+                        <span>Sesiones</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-bar-chart-box-line"></i>
+                        <span>Análisis</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-calendar-line"></i>
+                        <span>Calendario</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-medal-line"></i>
+                        <span>Logros</span>
+
+                    </a>
+
+                    <a href="#">
+
+                        <i class="ri-settings-3-line"></i>
+                        <span>Ajustes</span>
+
+                    </a>
+
+                </nav>
+
+            </div>
+
+            <!-- USER PANEL -->
+            <div class="user-panel">
+
+                <div class="user-glow"></div>
+
+                <img src="https://i.pravatar.cc/120" alt="profile">
+
+                <div class="user-info">
+
+                    <h3>Carlos David</h3>
+                    <p>Estudiante</p>
+
+                </div>
+
+                <button class="logout-btn">
+
+                    <i class="ri-logout-box-r-line"></i>
+
+                </button>
+
+            </div>
+
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main-content">
+
+            <!-- TOPBAR -->
+            <header class="topbar">
+
+                <div class="welcome">
+
+                    <h1>Hola, Carlos 👋</h1>
+                    <p>Construyamos una sesión increíble hoy.</p>
+
+                </div>
+
+                <div class="topbar-actions">
+
+                    <div class="mini-streak">
+
+                        <div class="mini-fire">
+                            🔥
+                        </div>
+
+                        <div class="mini-days">
+
+                            <div class="mini-day active">L</div>
+                            <div class="mini-day active">M</div>
+                            <div class="mini-day active">X</div>
+                            <div class="mini-day active">J</div>
+                            <div class="mini-day active">V</div>
+                            <div class="mini-day current">S</div>
+                            <div class="mini-day">D</div>
+
+                        </div>
+
+                        <div class="mini-count">
+                            12 días
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </header>
+
+            <!-- DASHBOARD GRID -->
+            <section class="dashboard-grid">
+
+                <!-- FOCUS CARD -->
+                <div class="card focus-card">
+
+                    <!-- HEADER -->
+                    <div class="card-header">
+
+                        <h2>Sesión de estudio</h2>
+
+                        <div class="status" id="sessionStatus">
+
+                            <span></span>
+                            Modo enfoque
+
+                        </div>
+
+                    </div>
+
+                    <!-- MODES -->
+                    <div class="pomodoro-modes">
+
+                        <button
+                            class="mode-btn active"
+                            data-time="25"
+                        >
+                            Enfoque
+                        </button>
+
+                        <button
+                            class="mode-btn"
+                            data-time="5"
+                        >
+                            Descanso
+                        </button>
+
+                        <button
+                            class="mode-btn"
+                            data-time="15"
+                        >
+                            Descanso largo
+                        </button>
+
+                    </div>
+
+                    <!-- TIMER -->
+                    <div class="focus-circle">
+
+                        <div class="circle-wrapper">
+
+                            <!-- SVG -->
+                            <svg
+                                class="progress-ring"
+                                width="320"
+                                height="320"
+                            >
+
+                                <circle
+                                    class="progress-bg"
+                                    cx="160"
+                                    cy="160"
+                                    r="130"
+                                />
+
+                                <circle
+                                    class="progress-ring-circle"
+                                    cx="160"
+                                    cy="160"
+                                    r="130"
+                                />
+
+                            </svg>
+
+                            <!-- TIMER CONTENT -->
+                            <div class="circle">
+
+                                <h1 id="timer">25:00</h1>
+                                <p>Tiempo restante</p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- TIMER BUTTONS -->
+                    <div class="timer-buttons">
+
+                        <button
+                            class="primary-btn"
+                            id="startBtn"
+                        >
+
+                            <i class="ri-play-fill"></i>
+                            Iniciar
+
+                        </button>
+
+                        <button
+                            class="secondary-btn"
+                            id="pauseBtn"
+                        >
+
+                            <i class="ri-pause-fill"></i>
+
+                        </button>
+
+                        <button
+                            class="secondary-btn"
+                            id="resetBtn"
+                        >
+
+                            <i class="ri-refresh-line"></i>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- PET CARD -->
+                <div class="card pet-card">
+
+                    <div class="pet-header">
+
+                        <div>
+
+                            <h2>Tu mascota: Buddy</h2>
+                            <p id="levelText">Nivel 1</p>
+
+                        </div>
+
+                        <div class="xp" id="xpText">
+                            0 / 350 XP
+                        </div>
+
+                    </div>
+
+                    <!-- XP BAR -->
+                    <div class="xp-bar">
+
+                        <div
+                            class="xp-fill"
+                            id="xpFill"
+                        ></div>
+
+                    </div>
+
+                    <!-- PET CONTENT -->
+                    <div class="pet-content">
+
+                        <div class="pet-message">
+
+                            <h3 id="petTitle">
+                                ¡Estoy orgulloso de ti! 💜
+                            </h3>
+
+                            <p>
+                                Cada minuto de enfoque
+                                te acerca más a tus metas.
+                            </p>
+
+                        </div>
+
+                        <img
+                            src="assets/imagenes/buddy-happy.png"
+                            alt="Buddy"
+                            id="buddyImage"
+                        >
+
+                    </div>
+
+                    <!-- MOOD -->
+                    <div class="mood-card">
+
+                        <div class="mood-icon">
+                            😊
+                        </div>
+
+                        <div>
+
+                            <h4>Feliz</h4>
+                            <p>Tu racha me hace feliz</p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- TASKS CARD -->
+                <div class="card tasks-card">
+
+                    <div class="card-header">
+
+                        <h2>Tareas de hoy</h2>
+
+                        <button class="small-btn">
+                            + Nueva
+                        </button>
+
+                    </div>
+
+                    <div class="task-list">
+
+                        <div class="task">
+
+                            <div class="task-left">
+
+                                <input type="checkbox">
+                                <span>Repasar estructuras de datos</span>
+
+                            </div>
+
+                            <span class="badge high">
+                                Alta
+                            </span>
+
+                        </div>
+
+                        <div class="task">
+
+                            <div class="task-left">
+
+                                <input type="checkbox">
+                                <span>Resolver ejercicios</span>
+
+                            </div>
+
+                            <span class="badge medium">
+                                Media
+                            </span>
+
+                        </div>
+
+                        <div class="task">
+
+                            <div class="task-left">
+
+                                <input type="checkbox">
+                                <span>Leer capítulo de Base de Datos</span>
+
+                            </div>
+
+                            <span class="badge low">
+                                Baja
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+                
+
+                <!-- PRODUCTIVITY CARD -->
+                <div class="card productivity-card">
+
+                    <div class="productivity-header">
+
+                        <div>
+
+                            <h2>Tu productividad</h2>
+                            <p>Resumen semanal</p>
+
+                        </div>
+
+                        <div class="productivity-score">
+                            84%
+                        </div>
+
+                    </div>
+
+                    <!-- PROGRESS -->
+                    <div class="productivity-progress">
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>Enfoque</span>
+                                <span>92%</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill purple"></div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>Tareas completadas</span>
+                                <span>76%</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill green"></div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>Hábitos</span>
+                                <span>68%</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill orange"></div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <!-- PRODUCTIVITY CHART -->
+
+<div class="mini-chart-container">
+
+    <canvas id="studyChart"></canvas>
+
+</div>
+
+                    <!-- MINI STATS -->
+                    <div class="mini-stats">
+
+                        <div class="mini-stat">
+
+                            <h3 id="studyHours">0h</h3>
+                            <p>Tiempo total</p>
+
+                        </div>
+
+                        <div class="mini-stat">
+
+                            <h3 id="sessionsCount">0</h3>
+                            <p>Sesiones</p>
+
+                        </div>
+
+                        <div class="mini-stat">
+
+                            <h3 id="consistency">100%</h3>
+                            <p>Consistencia</p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="dashboard.js"></script>
+
+</body>
+
+</html>
