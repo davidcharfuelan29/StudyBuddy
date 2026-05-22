@@ -187,119 +187,193 @@
             <!-- DASHBOARD GRID -->
             <section class="dashboard-grid">
 
-                <!-- FOCUS CARD -->
+                <!-- =========================
+                FOCUS CARD PREMIUM
+            ========================= -->
+
                 <div class="card focus-card">
 
-                    <!-- HEADER -->
-                    <div class="card-header">
+                    <!-- BACKGROUND -->
+                    <div class="focus-bg"></div>
+                    <div class="focus-overlay"></div>
+                    <div class="focus-glow"></div>
 
-                        <h2>Sesión de estudio</h2>
+                    <!-- FLOATING PARTICLES -->
+                    <div class="focus-stars">
 
-                        <div class="status" id="sessionStatus">
-
-                            <span></span>
-                            Modo enfoque
-
-                        </div>
-
-                    </div>
-
-                    <!-- MODES -->
-                    <div class="pomodoro-modes">
-
-                        <button
-                            class="mode-btn active"
-                            data-time="25"
-                        >
-                            Enfoque
-                        </button>
-
-                        <button
-                            class="mode-btn"
-                            data-time="5"
-                        >
-                            Descanso
-                        </button>
-
-                        <button
-                            class="mode-btn"
-                            data-time="15"
-                        >
-                            Descanso largo
-                        </button>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
 
                     </div>
 
-                    <!-- TIMER -->
-                    <div class="focus-circle">
+                    <!-- CONTENT -->
+                    <div class="focus-content">
 
-                        <div class="circle-wrapper">
+                        <!-- HEADER -->
+                        <div class="card-header">
 
-                            <!-- SVG -->
-                            <svg
-                                class="progress-ring"
-                                width="320"
-                                height="320"
-                            >
+                            <div>
 
-                                <circle
-                                    class="progress-bg"
-                                    cx="160"
-                                    cy="160"
-                                    r="130"
-                                />
+                                <h2>Sesión de estudio</h2>
 
-                                <circle
-                                    class="progress-ring-circle"
-                                    cx="160"
-                                    cy="160"
-                                    r="130"
-                                />
+                                <p class="focus-subtitle">
+                                    Enfócate en ti, el resultado llegará.
+                                </p>
 
-                            </svg>
+                            </div>
 
-                            <!-- TIMER CONTENT -->
-                            <div class="circle">
+                            <div class="focus-actions">
 
-                                <h1 id="timer">25:00</h1>
-                                <p>Tiempo restante</p>
+                                <div class="status" id="sessionStatus">
+
+                                    <span></span>
+                                    Modo enfoque
+
+                                </div>
+
+                                <button class="music-btn">
+
+                                    <i class="ri-music-2-fill"></i>
+
+                                </button>
 
                             </div>
 
                         </div>
 
-                    </div>
+                        <!-- TIMER -->
+                        <div class="focus-circle">
 
-                    <!-- TIMER BUTTONS -->
-                    <div class="timer-buttons">
+                            <div class="circle-wrapper">
 
-                        <button
-                            class="primary-btn"
-                            id="startBtn"
-                        >
+                                <!-- SVG -->
+                                <svg
+                                    class="progress-ring"
+                                    width="340"
+                                    height="340"
+                                >
 
-                            <i class="ri-play-fill"></i>
-                            Iniciar
+                                    <defs>
 
-                        </button>
+                                        <linearGradient
+                                            id="gradientStroke"
+                                            x1="0%"
+                                            y1="0%"
+                                            x2="100%"
+                                            y2="100%"
+                                        >
 
-                        <button
-                            class="secondary-btn"
-                            id="pauseBtn"
-                        >
+                                            <stop offset="0%" stop-color="#7c5cff"/>
+                                            <stop offset="100%" stop-color="#d18cff"/>
 
-                            <i class="ri-pause-fill"></i>
+                                        </linearGradient>
 
-                        </button>
+                                    </defs>
 
-                        <button
-                            class="secondary-btn"
-                            id="resetBtn"
-                        >
+                                    <circle
+                                        class="progress-bg"
+                                        cx="170"
+                                        cy="170"
+                                        r="135"
+                                    />
 
-                            <i class="ri-refresh-line"></i>
+                                    <circle
+                                        class="progress-ring-circle"
+                                        cx="170"
+                                        cy="170"
+                                        r="135"
+                                    />
 
-                        </button>
+                                </svg>
+
+                                <!-- TIMER CONTENT -->
+                                <div class="circle">
+
+                                    <div class="focus-mode-label">
+                                        Enfocado
+                                    </div>
+
+                                    <h1 id="timer">25:00</h1>
+
+                                    <p>Tiempo restante</p>
+
+                                    <button
+                                        class="primary-btn"
+                                        id="startBtn"
+                                    >
+
+                                        <i class="ri-play-fill"></i>
+                                        Iniciar sesión
+
+                                    </button>
+
+                                </div>
+
+                                <div class="timer-buttons">
+
+                                    <button
+                                        class="secondary-btn"
+                                        id="pauseBtn"
+                                        title="Pausar"
+                                    >
+
+                                        <i class="ri-pause-line"></i>
+
+                                    </button>
+
+                                    <button
+                                        class="secondary-btn"
+                                        id="resetBtn"
+                                        title="Reiniciar"
+                                    >
+
+                                        <i class="ri-restart-line"></i>
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- SESSION FLOW -->
+                        <div class="session-flow">
+
+                            <div class="flow-card active">
+
+                                🍅
+
+                                <div>
+
+                                    <span>Pomodoro</span>
+                                    <small>25 min</small>
+
+                                </div>
+
+                            </div>
+
+                            <div class="flow-arrow">
+                                →
+                            </div>
+
+                            <div class="flow-card">
+
+                                ☕
+
+                                <div>
+
+                                    <span>Descanso corto</span>
+                                    <small>5 min</small>
+
+                                </div>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
@@ -438,7 +512,6 @@
                     </div>
 
                 </div>
-                
 
                 <!-- PRODUCTIVITY CARD -->
                 <div class="card productivity-card">
@@ -513,13 +586,13 @@
                         </div>
 
                     </div>
+
                     <!-- PRODUCTIVITY CHART -->
+                    <div class="mini-chart-container">
 
-<div class="mini-chart-container">
+                        <canvas id="studyChart"></canvas>
 
-    <canvas id="studyChart"></canvas>
-
-</div>
+                    </div>
 
                     <!-- MINI STATS -->
                     <div class="mini-stats">
