@@ -101,8 +101,11 @@ const progressCircle =
 const sessionStatus =
     document.getElementById('sessionStatus');
 
-const modeButtons =
-    document.querySelectorAll('.mode-btn');
+const flowCards =
+    document.querySelectorAll('.flow-card');
+
+const focusModeLabel =
+    document.getElementById('focusModeLabel');
 
 const sidebar =
     document.querySelector('.sidebar');
@@ -114,10 +117,10 @@ const sidebarToggle =
    TIMER VARIABLES
 ========================= */
 
-const radius = 130;
+const RING_RADIUS = 130;
 
 const circumference =
-    2 * Math.PI * radius;
+    2 * Math.PI * RING_RADIUS;
 
 progressCircle.style.strokeDasharray =
     circumference;
@@ -168,36 +171,36 @@ const completeSound =
    BUDDY STATES
 ========================= */
 
+const BUDDY_BASE = 'assets/imagenes/';
+
 const buddyImage =
     document.getElementById('buddyImage');
 
+const buddyPlaceholder =
+    document.getElementById('buddyPlaceholder');
+
+/* Activar cuando tengas las imágenes en assets/imagenes/ */
+const BUDDY_IMAGES_ENABLED = false;
+
 function setBuddyMood(mood){
 
-    if(mood === 'happy'){
+    if(!BUDDY_IMAGES_ENABLED || !buddyImage) return;
 
-        buddyImage.src =
-            'assets/buddy-happy.png';
+    const moods = {
+        happy: 'buddy-happy.png',
+        sleep: 'buddy-sleep.png',
+        excited: 'buddy-excited.png',
+        tired: 'buddy-tired.png',
+    };
 
-    }
+    if(!moods[mood]) return;
 
-    else if(mood === 'sleep'){
+    buddyImage.src = `${BUDDY_BASE}${moods[mood]}`;
+    buddyImage.classList.remove('is-hidden');
 
-        buddyImage.src =
-            'assets/buddy-sleep.png';
+    if(buddyPlaceholder){
 
-    }
-
-    else if(mood === 'excited'){
-
-        buddyImage.src =
-            'assets/buddy-excited.png';
-
-    }
-
-    else if(mood === 'tired'){
-
-        buddyImage.src =
-            'assets/buddy-tired.png';
+        buddyPlaceholder.style.display = 'none';
 
     }
 
@@ -243,7 +246,12 @@ function loadStats(){
 
     if(consistencyElement){
 
-        consistencyElement.textContent = '92%';
+        const consistency =
+            completedSessions > 0
+                ? Math.min(100, Math.round((completedSessions / 7) * 100))
+                : 100;
+
+        consistencyElement.textContent = `${consistency}%`;
 
     }
 
@@ -418,7 +426,7 @@ function startPomodoro(){
 
             /* SOUND */
 
-            completeSound.play();
+            completeSound.play().catch(() => {});
 
             /* BUTTON */
 
@@ -515,92 +523,133 @@ sidebarToggle.addEventListener('click', () => {
 });
 
 /* =========================
-   POMODORO MODES
+   SESSION MODES (FLOW CARDS)
 ========================= */
 
-modeButtons.forEach(button => {
+function applySessionMode(minutes){
 
-    button.addEventListener('click', () => {
+    currentMode = minutes;
 
-        /* REMOVE ACTIVE */
+    totalTime = minutes * 60;
 
-        modeButtons.forEach(btn => {
+    timeLeft = totalTime;
 
-            btn.classList.remove('active');
+    clearInterval(timerInterval);
 
-        });
+    timerRunning = false;
 
-        /* ADD ACTIVE */
+    document.querySelector('.circle')
+        ?.classList.remove('running');
 
-        button.classList.add('active');
+    updateTimer();
 
-        /* GET MODE TIME */
+    if(minutes === 25){
 
-        const minutes =
-            parseInt(button.dataset.time);
-
-        currentMode = minutes;
-
-        totalTime = minutes * 60;
-
-        timeLeft = totalTime;
-
-        /* RESET TIMER */
-
-        clearInterval(timerInterval);
-
-        timerRunning = false;
-
-        document.querySelector('.circle')
-            .classList.remove('running');
-
-
-        updateTimer();
-
-        /* CHANGE STATUS */
-
-        if(minutes === 25){
+        if(sessionStatus){
 
             sessionStatus.innerHTML = `
                 <span></span>
                 Modo enfoque
             `;
 
-            progressCircle.style.stroke =
-                '#7c5cff';
+        }
+
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Enfocado';
 
         }
 
-        else if(minutes === 5){
+        progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    }
+
+    else if(minutes === 5){
+
+        if(sessionStatus){
 
             sessionStatus.innerHTML = `
                 <span></span>
                 Descanso corto
-                `;
-
-                progressCircle.style.stroke =
-                    '#34d399';
+            `;
 
         }
 
-        else{
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Descanso';
+
+        }
+
+        progressCircle.style.stroke = '#34d399';
+
+    }
+
+    else{
+
+        if(sessionStatus){
 
             sessionStatus.innerHTML = `
                 <span></span>
                 Descanso largo
             `;
 
-            progressCircle.style.stroke =
-                '#f59e0b';
+        }
+
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Descanso largo';
 
         }
 
-        /* RESET BUTTON */
+        progressCircle.style.stroke = '#f59e0b';
 
-        startButton.innerHTML = `
-            <i class="ri-play-fill"></i>
-            Iniciar
-        `;
+    }
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar sesión
+    `;
+
+}
+
+function selectFlowCard(card){
+
+    flowCards.forEach(btn => {
+
+        btn.classList.remove('active');
+
+    });
+
+    card.classList.add('active');
+
+    const minutes = parseInt(card.dataset.time, 10);
+
+    if(!Number.isNaN(minutes)){
+
+        applySessionMode(minutes);
+
+    }
+
+}
+
+flowCards.forEach(card => {
+
+    card.addEventListener('click', () => {
+
+        selectFlowCard(card);
+
+    });
+
+    card.addEventListener('keydown', (event) => {
+
+        if(event.key === 'Enter' || event.key === ' '){
+
+            event.preventDefault();
+
+            selectFlowCard(card);
+
+        }
 
     });
 
@@ -638,6 +687,10 @@ if(chartCanvas){
 
                 data: [2, 4, 3, 5, 6, 4, 7],
 
+                borderColor: '#7c5cff',
+
+                backgroundColor: 'rgba(124,92,255,0.15)',
+
                 borderWidth: 3,
 
                 tension: 0.5,
@@ -645,6 +698,8 @@ if(chartCanvas){
                 fill: true,
 
                 pointRadius: 4,
+
+                pointBackgroundColor: '#9f7bff',
 
                 pointHoverRadius: 7,
 

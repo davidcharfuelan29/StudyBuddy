@@ -247,13 +247,12 @@
                         <!-- TIMER -->
                         <div class="focus-circle">
 
-                            <div class="circle-wrapper">
+                            <div class="timer-ring">
 
-                                <!-- SVG -->
                                 <svg
                                     class="progress-ring"
-                                    width="340"
-                                    height="340"
+                                    viewBox="0 0 280 280"
+                                    aria-hidden="true"
                                 >
 
                                     <defs>
@@ -275,24 +274,23 @@
 
                                     <circle
                                         class="progress-bg"
-                                        cx="170"
-                                        cy="170"
-                                        r="135"
+                                        cx="140"
+                                        cy="140"
+                                        r="130"
                                     />
 
                                     <circle
                                         class="progress-ring-circle"
-                                        cx="170"
-                                        cy="170"
-                                        r="135"
+                                        cx="140"
+                                        cy="140"
+                                        r="130"
                                     />
 
                                 </svg>
 
-                                <!-- TIMER CONTENT -->
                                 <div class="circle">
 
-                                    <div class="focus-mode-label">
+                                    <div class="focus-mode-label" id="focusModeLabel">
                                         Enfocado
                                     </div>
 
@@ -312,29 +310,29 @@
 
                                 </div>
 
-                                <div class="timer-buttons">
+                            </div>
 
-                                    <button
-                                        class="secondary-btn"
-                                        id="pauseBtn"
-                                        title="Pausar"
-                                    >
+                            <div class="timer-buttons">
 
-                                        <i class="ri-pause-line"></i>
+                                <button
+                                    class="secondary-btn"
+                                    id="pauseBtn"
+                                    title="Pausar"
+                                >
 
-                                    </button>
+                                    <i class="ri-pause-line"></i>
 
-                                    <button
-                                        class="secondary-btn"
-                                        id="resetBtn"
-                                        title="Reiniciar"
-                                    >
+                                </button>
 
-                                        <i class="ri-restart-line"></i>
+                                <button
+                                    class="secondary-btn"
+                                    id="resetBtn"
+                                    title="Reiniciar"
+                                >
 
-                                    </button>
+                                    <i class="ri-restart-line"></i>
 
-                                </div>
+                                </button>
 
                             </div>
 
@@ -343,7 +341,12 @@
                         <!-- SESSION FLOW -->
                         <div class="session-flow">
 
-                            <div class="flow-card active">
+                            <div
+                                class="flow-card active"
+                                data-time="25"
+                                role="button"
+                                tabindex="0"
+                            >
 
                                 🍅
 
@@ -360,7 +363,12 @@
                                 →
                             </div>
 
-                            <div class="flow-card">
+                            <div
+                                class="flow-card"
+                                data-time="5"
+                                role="button"
+                                tabindex="0"
+                            >
 
                                 ☕
 
@@ -423,11 +431,25 @@
 
                         </div>
 
-                        <img
-                            src="assets/imagenes/buddy-happy.png"
-                            alt="Buddy"
-                            id="buddyImage"
-                        >
+                        <div class="pet-mascot-slot">
+
+                            <div
+                                class="pet-mascot-placeholder"
+                                id="buddyPlaceholder"
+                            >
+
+                                <i class="ri-ghost-smile-line"></i>
+                                <span>Mascota próximamente</span>
+
+                            </div>
+
+                            <img
+                                class="pet-mascot-img is-hidden"
+                                alt="Buddy"
+                                id="buddyImage"
+                            >
+
+                        </div>
 
                     </div>
 
