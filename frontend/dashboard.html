@@ -56,7 +56,7 @@
                 <!-- LOGO -->
                 <div class="logo">
 
-                    <i class="ri-ghost-2-fill"></i>
+                    <img src="assets/imagenes/logo.png" alt="StudyBuddy">
                     <span>StudyBuddy</span>
 
                 </div>
@@ -64,49 +64,49 @@
                 <!-- MENU -->
                 <nav class="menu">
 
-                    <a href="#" class="active">
+                    <a href="#" class="active" data-section="home">
 
                         <i class="ri-home-5-fill"></i>
                         <span>Inicio</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="tasks">
 
                         <i class="ri-task-line"></i>
                         <span>Tareas</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="sessions">
 
                         <i class="ri-timer-flash-line"></i>
                         <span>Sesiones</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="analytics">
 
                         <i class="ri-bar-chart-box-line"></i>
                         <span>Análisis</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="calendar">
 
                         <i class="ri-calendar-line"></i>
                         <span>Calendario</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="achievements">
 
                         <i class="ri-medal-line"></i>
                         <span>Logros</span>
 
                     </a>
 
-                    <a href="#">
+                    <a href="#" data-section="settings">
 
                         <i class="ri-settings-3-line"></i>
                         <span>Ajustes</span>
@@ -220,6 +220,8 @@
             </header>
 
             <!-- DASHBOARD GRID -->
+            <section class="dashboard-section active" id="section-home">
+
             <section class="dashboard-grid">
 
                 <!-- =========================
@@ -519,104 +521,14 @@
 
                         </div>
 
-                        <button class="small-btn">
+                        <button class="small-btn" data-section-trigger="tasks">
                             <i class="ri-add-line"></i>
                             Nueva
                         </button>
 
                     </div>
 
-                    <div class="task-list">
-
-                        <div class="task">
-
-                            <div class="task-left">
-
-                                <input type="checkbox">
-
-                                <div class="task-icon purple">
-                                    <i class="ri-graduation-cap-line"></i>
-                                </div>
-
-                                <span>Repasar estructuras de datos</span>
-
-                            </div>
-
-                            <div class="task-meta">
-
-                                <span class="badge high">
-                                    Alta
-                                </span>
-
-                                <small>45 min</small>
-
-                                <button class="task-menu" title="Más opciones">
-                                    <i class="ri-more-2-fill"></i>
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                        <div class="task">
-
-                            <div class="task-left">
-
-                                <input type="checkbox">
-
-                                <div class="task-icon orange">
-                                    <i class="ri-file-list-3-line"></i>
-                                </div>
-
-                                <span>Resolver ejercicios</span>
-
-                            </div>
-
-                            <div class="task-meta">
-
-                                <span class="badge medium">
-                                    Media
-                                </span>
-
-                                <small>60 min</small>
-
-                                <button class="task-menu" title="Más opciones">
-                                    <i class="ri-more-2-fill"></i>
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                        <div class="task">
-
-                            <div class="task-left">
-
-                                <input type="checkbox">
-
-                                <div class="task-icon blue">
-                                    <i class="ri-book-open-line"></i>
-                                </div>
-
-                                <span>Leer capítulo de Base de Datos</span>
-
-                            </div>
-
-                            <div class="task-meta">
-
-                                <span class="badge low">
-                                    Baja
-                                </span>
-
-                                <small>30 min</small>
-
-                                <button class="task-menu" title="Más opciones">
-                                    <i class="ri-more-2-fill"></i>
-                                </button>
-
-                            </div>
-
-                        </div>
+                    <div class="task-list" id="todayTaskList">
 
                     </div>
 
@@ -794,6 +706,179 @@
 
                     </div>
 
+                </div>
+
+            </section>
+
+            </section>
+
+            <section class="dashboard-section" id="section-tasks">
+
+                <div class="section-grid">
+
+                    <div class="card task-create-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>Crear nueva tarea</h2>
+                                <p>Organiza tus entregas y sesiones desde un solo lugar.</p>
+
+                            </div>
+
+                        </div>
+
+                        <form class="task-form" id="taskForm">
+
+                            <label>
+                                Tarea
+                                <input type="text" id="taskTitle" placeholder="Ej: Repasar estructuras de datos" required>
+                            </label>
+
+                            <div class="form-row">
+
+                                <label>
+                                    Fecha
+                                    <input type="date" id="taskDate">
+                                </label>
+
+                                <label>
+                                    Prioridad
+                                    <select id="taskPriority">
+                                        <option value="alta">Alta</option>
+                                        <option value="media" selected>Media</option>
+                                        <option value="baja">Baja</option>
+                                    </select>
+                                </label>
+
+                            </div>
+
+                            <label>
+                                Duración estimada
+                                <input type="number" id="taskDuration" min="5" step="5" value="30">
+                            </label>
+
+                            <button class="primary-btn task-submit" type="submit">
+                                <i class="ri-add-line"></i>
+                                Crear tarea
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                    <div class="card task-page-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>Todas las tareas</h2>
+                                <p id="taskPageSummary">Cargando tareas...</p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="task-list" id="allTaskList"></div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-calendar">
+
+                <div class="card calendar-card">
+
+                    <div class="calendar-header">
+
+                        <div>
+
+                            <h2 id="calendarTitle">Calendario</h2>
+                            <p>Visualiza tus tareas por fecha y mantén claridad semanal.</p>
+
+                        </div>
+
+                        <div class="calendar-controls">
+
+                            <button class="secondary-btn" id="prevMonthBtn" title="Mes anterior">
+                                <i class="ri-arrow-left-s-line"></i>
+                            </button>
+
+                            <button class="secondary-btn" id="nextMonthBtn" title="Mes siguiente">
+                                <i class="ri-arrow-right-s-line"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    <div class="calendar-layout">
+
+                        <div class="calendar-board">
+
+                            <div class="calendar-weekdays">
+                                <span>Lun</span>
+                                <span>Mar</span>
+                                <span>Mié</span>
+                                <span>Jue</span>
+                                <span>Vie</span>
+                                <span>Sáb</span>
+                                <span>Dom</span>
+                            </div>
+
+                            <div class="calendar-grid" id="calendarGrid"></div>
+
+                        </div>
+
+                        <aside class="calendar-day-panel">
+
+                            <h3 id="selectedDayTitle">Tareas del día</h3>
+                            <div class="task-list compact" id="selectedDayTasks"></div>
+
+                        </aside>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-analytics">
+
+                <div class="card placeholder-section-card">
+                    <h2>Análisis</h2>
+                    <p>Tu vista de productividad ya está en Inicio. Aquí prepararemos métricas más profundas sin alterar el diseño actual.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-sessions">
+
+                <div class="card placeholder-section-card">
+                    <h2>Sesiones</h2>
+                    <p>La sesión Pomodoro principal se mantiene en Inicio. Esta sección queda preparada para historial y configuración de sesiones.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-achievements">
+
+                <div class="card placeholder-section-card">
+                    <h2>Logros</h2>
+                    <p>Pronto podrás revisar insignias, rachas y progreso acumulado.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-settings">
+
+                <div class="card placeholder-section-card">
+                    <h2>Ajustes</h2>
+                    <p>Espacio reservado para preferencias del dashboard y cuenta.</p>
                 </div>
 
             </section>

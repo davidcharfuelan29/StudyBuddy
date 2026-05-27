@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from .database import Base
 
 # 🔹 MODELO TASK 
@@ -7,6 +7,10 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
+    due_date = Column(String, nullable=True)
+    priority = Column(String, default="media")
+    duration_minutes = Column(Integer, default=30)
+    completed = Column(Boolean, default=False)
 
 
 # 🔹 MODELO USER 
