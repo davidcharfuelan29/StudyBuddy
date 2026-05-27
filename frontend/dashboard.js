@@ -669,39 +669,35 @@ if(chartCanvas){
 
     new Chart(ctxChart, {
 
-        type: 'line',
+        type: 'doughnut',
 
         data: {
 
             labels: [
-                'L',
-                'M',
-                'X',
-                'J',
-                'V',
-                'S',
-                'D'
+                'Enfoque profundo',
+                'Estudio ligero',
+                'Descansos',
+                'Distracciones'
             ],
 
             datasets: [{
 
-                data: [2, 4, 3, 5, 6, 4, 7],
+                data: [60, 23, 11, 6],
 
-                borderColor: '#7c5cff',
+                backgroundColor: [
+                    '#50e486',
+                    '#7894ff',
+                    '#ffad4c',
+                    '#ff6b6b'
+                ],
 
-                backgroundColor: 'rgba(124,92,255,0.15)',
+                borderColor: 'rgba(11,15,42,0.95)',
 
-                borderWidth: 3,
+                borderWidth: 8,
 
-                tension: 0.5,
+                hoverOffset: 4,
 
-                fill: true,
-
-                pointRadius: 4,
-
-                pointBackgroundColor: '#9f7bff',
-
-                pointHoverRadius: 7,
+                cutout: '72%',
 
             }]
 
@@ -713,6 +709,14 @@ if(chartCanvas){
 
             maintainAspectRatio: false,
 
+            animation: {
+
+                animateRotate: true,
+
+                duration: 900
+
+            },
+
             plugins: {
 
                 legend: {
@@ -722,33 +726,6 @@ if(chartCanvas){
                 }
 
             },
-
-            scales: {
-
-                x: {
-
-                    grid: {
-
-                        display: false
-
-                    }
-
-                },
-
-                y: {
-
-                    beginAtZero: true,
-
-                    grid: {
-
-                        color: 'rgba(255,255,255,0.05)'
-
-                    }
-
-                }
-
-            }
-
         }
 
     });

@@ -158,24 +158,59 @@
 
                     <div class="mini-streak">
 
-                        <div class="mini-fire">
-                            🔥
+                        <div class="mini-streak-summary">
+
+                            <div class="mini-fire">
+                                🔥
+                            </div>
+
+                            <div>
+
+                                <span>Racha actual</span>
+                                <strong>12 días</strong>
+                                <small>¡Vas genial! 🔥</small>
+
+                            </div>
+
                         </div>
 
                         <div class="mini-days">
 
-                            <div class="mini-day active">L</div>
-                            <div class="mini-day active">M</div>
-                            <div class="mini-day active">X</div>
-                            <div class="mini-day active">J</div>
-                            <div class="mini-day active">V</div>
-                            <div class="mini-day current">S</div>
-                            <div class="mini-day">D</div>
+                            <div class="mini-day active">
+                                <span>Lun</span>
+                                <i class="ri-check-line"></i>
+                            </div>
 
-                        </div>
+                            <div class="mini-day active">
+                                <span>Mar</span>
+                                <i class="ri-check-line"></i>
+                            </div>
 
-                        <div class="mini-count">
-                            12 días
+                            <div class="mini-day active">
+                                <span>Mié</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Jue</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Vie</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day current">
+                                <span>Sáb</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day pending">
+                                <span>Dom</span>
+                                <i></i>
+                            </div>
+
                         </div>
 
                     </div>
@@ -394,7 +429,7 @@
 
                         <div>
 
-                            <h2>Tu mascota: Buddy</h2>
+                            <h2>Tu mascota: <span>Buddy</span></h2>
                             <p id="levelText">Nivel 1</p>
 
                         </div>
@@ -438,8 +473,9 @@
                                 id="buddyPlaceholder"
                             >
 
-                                <i class="ri-ghost-smile-line"></i>
-                                <span>Mascota próximamente</span>
+                                <i class="ri-sparkling-2-line"></i>
+                                <span>Espacio reservado para Buddy</span>
+                                <small>Asset pendiente</small>
 
                             </div>
 
@@ -457,13 +493,13 @@
                     <div class="mood-card">
 
                         <div class="mood-icon">
-                            😊
+                            <i class="ri-emotion-happy-line"></i>
                         </div>
 
                         <div>
 
                             <h4>Feliz</h4>
-                            <p>Tu racha me hace feliz</p>
+                            <p>Tu racha me hace muy feliz</p>
 
                         </div>
 
@@ -476,10 +512,16 @@
 
                     <div class="card-header">
 
-                        <h2>Tareas de hoy</h2>
+                        <div class="tasks-title">
+
+                            <h2>Tareas de hoy</h2>
+                            <span>3 pendientes</span>
+
+                        </div>
 
                         <button class="small-btn">
-                            + Nueva
+                            <i class="ri-add-line"></i>
+                            Nueva
                         </button>
 
                     </div>
@@ -491,13 +533,28 @@
                             <div class="task-left">
 
                                 <input type="checkbox">
+
+                                <div class="task-icon purple">
+                                    <i class="ri-graduation-cap-line"></i>
+                                </div>
+
                                 <span>Repasar estructuras de datos</span>
 
                             </div>
 
-                            <span class="badge high">
-                                Alta
-                            </span>
+                            <div class="task-meta">
+
+                                <span class="badge high">
+                                    Alta
+                                </span>
+
+                                <small>45 min</small>
+
+                                <button class="task-menu" title="Más opciones">
+                                    <i class="ri-more-2-fill"></i>
+                                </button>
+
+                            </div>
 
                         </div>
 
@@ -506,13 +563,28 @@
                             <div class="task-left">
 
                                 <input type="checkbox">
+
+                                <div class="task-icon orange">
+                                    <i class="ri-file-list-3-line"></i>
+                                </div>
+
                                 <span>Resolver ejercicios</span>
 
                             </div>
 
-                            <span class="badge medium">
-                                Media
-                            </span>
+                            <div class="task-meta">
+
+                                <span class="badge medium">
+                                    Media
+                                </span>
+
+                                <small>60 min</small>
+
+                                <button class="task-menu" title="Más opciones">
+                                    <i class="ri-more-2-fill"></i>
+                                </button>
+
+                            </div>
 
                         </div>
 
@@ -521,13 +593,28 @@
                             <div class="task-left">
 
                                 <input type="checkbox">
+
+                                <div class="task-icon blue">
+                                    <i class="ri-book-open-line"></i>
+                                </div>
+
                                 <span>Leer capítulo de Base de Datos</span>
 
                             </div>
 
-                            <span class="badge low">
-                                Baja
-                            </span>
+                            <div class="task-meta">
+
+                                <span class="badge low">
+                                    Baja
+                                </span>
+
+                                <small>30 min</small>
+
+                                <button class="task-menu" title="Más opciones">
+                                    <i class="ri-more-2-fill"></i>
+                                </button>
+
+                            </div>
 
                         </div>
 
@@ -547,38 +634,38 @@
 
                         </div>
 
-                        <div class="productivity-score">
-                            84%
-                        </div>
+                        <button class="period-btn">
+                            Esta semana
+                            <i class="ri-arrow-down-s-line"></i>
+                        </button>
 
                     </div>
 
-                    <!-- PROGRESS -->
-                    <div class="productivity-progress">
+                    <div class="productivity-overview">
 
-                        <div class="progress-item">
+                        <div class="productivity-donut">
 
-                            <div class="progress-info">
+                            <canvas id="studyChart"></canvas>
 
-                                <span>Enfoque</span>
-                                <span>92%</span>
-
-                            </div>
-
-                            <div class="progress-bar">
-
-                                <div class="progress-fill purple"></div>
-
+                            <div class="productivity-score">
+                                <strong>84%</strong>
+                                <span>Productividad</span>
                             </div>
 
                         </div>
 
+                        <!-- PROGRESS -->
+                        <div class="productivity-progress">
+
                         <div class="progress-item">
 
                             <div class="progress-info">
 
-                                <span>Tareas completadas</span>
-                                <span>76%</span>
+                                <span>
+                                    <i class="legend-dot green"></i>
+                                    Enfoque profundo
+                                </span>
+                                <span>16h 30m</span>
 
                             </div>
 
@@ -594,8 +681,31 @@
 
                             <div class="progress-info">
 
-                                <span>Hábitos</span>
-                                <span>68%</span>
+                                <span>
+                                    <i class="legend-dot blue"></i>
+                                    Estudio ligero
+                                </span>
+                                <span>6h 20m</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill blue"></div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>
+                                    <i class="legend-dot orange"></i>
+                                    Descansos
+                                </span>
+                                <span>3h 10m</span>
 
                             </div>
 
@@ -607,12 +717,54 @@
 
                         </div>
 
+                            <div class="progress-item">
+
+                                <div class="progress-info">
+
+                                    <span>
+                                        <i class="legend-dot red"></i>
+                                        Distracciones
+                                    </span>
+                                    <span>1h 20m</span>
+
+                                </div>
+
+                                <div class="progress-bar">
+
+                                    <div class="progress-fill red"></div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
                     </div>
 
-                    <!-- PRODUCTIVITY CHART -->
-                    <div class="mini-chart-container">
+                    <div class="productivity-insight">
 
-                        <canvas id="studyChart"></canvas>
+                        <div class="insight-icon">
+                            <i class="ri-brain-line"></i>
+                        </div>
+
+                        <div>
+
+                            <h4>Insight de la semana</h4>
+                            <p>Estudias mejor por las noches. Tu pico de enfoque es entre 7PM - 11PM.</p>
+
+                        </div>
+
+                        <div class="insight-bars" aria-hidden="true">
+
+                            <span style="--bar-height:18px; --delay:0s"></span>
+                            <span style="--bar-height:26px; --delay:.08s"></span>
+                            <span style="--bar-height:34px; --delay:.16s"></span>
+                            <span style="--bar-height:48px; --delay:.24s"></span>
+                            <span style="--bar-height:64px; --delay:.32s"></span>
+                            <span style="--bar-height:78px; --delay:.4s"></span>
+                            <span style="--bar-height:58px; --delay:.48s"></span>
+
+                        </div>
 
                     </div>
 
