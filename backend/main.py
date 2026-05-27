@@ -4,6 +4,7 @@ from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
+from sqlalchemy import inspect, text
 from .database import SessionLocal, engine, Base
 from .models import Task, User
 
@@ -27,6 +28,33 @@ def verify_password(plain_password: str, hashed_password: str):
 
 # 🧱 CREAR TABLAS
 Base.metadata.create_all(bind=engine)
+
+def ensure_task_columns():
+    inspector = inspect(engine)
+
+    if "tasks" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("tasks")
+    }
+
+    columns = {
+        "due_date": "VARCHAR",
+        "priority": "VARCHAR DEFAULT 'media'",
+        "duration_minutes": "INTEGER DEFAULT 30",
+        "completed": "BOOLEAN DEFAULT FALSE",
+    }
+
+    with engine.begin() as connection:
+        for column_name, definition in columns.items():
+            if column_name not in existing_columns:
+                connection.execute(
+                    text(f"ALTER TABLE tasks ADD COLUMN {column_name} {definition}")
+                )
+
+ensure_task_columns()
 
 # 🌐 CORS
 app.add_middleware(
@@ -96,18 +124,34 @@ def login(user: dict):
 
 # 📋 TASKS
 
+def serialize_task(task: Task):
+    return {
+        "id": task.id,
+        "title": task.title,
+        "due_date": task.due_date,
+        "priority": task.priority or "media",
+        "duration_minutes": task.duration_minutes or 30,
+        "completed": bool(task.completed),
+    }
+
 @app.get("/tasks")
 def get_tasks():
     db = SessionLocal()
     tasks = db.query(Task).all()
     db.close()
-    return [{"id": t.id, "title": t.title} for t in tasks]
+    return [serialize_task(t) for t in tasks]
 
 
 @app.post("/tasks")
 def create_task(task: dict):
     db = SessionLocal()
-    new_task = Task(title=task["title"])
+    new_task = Task(
+        title=task["title"],
+        due_date=task.get("due_date"),
+        priority=task.get("priority", "media"),
+        duration_minutes=task.get("duration_minutes", 30),
+        completed=task.get("completed", False),
+    )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -115,7 +159,7 @@ def create_task(task: dict):
 
     return {
         "message": "Tarea creada",
-        "task": {"id": new_task.id, "title": new_task.title}
+        "task": serialize_task(new_task)
     }
 
 
@@ -128,7 +172,7 @@ def get_task(task_id: int):
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
-    return {"id": task.id, "title": task.title}
+    return serialize_task(task)
 
 
 @app.put("/tasks/{task_id}")
@@ -140,14 +184,21 @@ def update_task(task_id: int, updated_task: dict):
         db.close()
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
-    task.title = updated_task["title"]
+    task.title = updated_task.get("title", task.title)
+    task.due_date = updated_task.get("due_date", task.due_date)
+    task.priority = updated_task.get("priority", task.priority)
+    task.duration_minutes = updated_task.get(
+        "duration_minutes",
+        task.duration_minutes,
+    )
+    task.completed = updated_task.get("completed", task.completed)
     db.commit()
     db.refresh(task)
     db.close()
 
     return {
         "message": "Tarea actualizada",
-        "task": {"id": task.id, "title": task.title}
+        "task": serialize_task(task)
     }
 
 
@@ -166,5 +217,5 @@ def delete_task(task_id: int):
 
     return {
         "message": "Tarea eliminada",
-        "task": {"id": task.id, "title": task.title}
+        "task": serialize_task(task)
     }

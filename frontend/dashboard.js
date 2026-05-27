@@ -1,5 +1,7 @@
 console.log("StudyBuddy Dashboard Loaded");
 
+const API_URL = "http://127.0.0.1:8000";
+
 /* =========================
    PARTICLES SYSTEM
 ========================= */
@@ -113,6 +115,45 @@ const sidebar =
 const sidebarToggle =
     document.getElementById('sidebarToggle');
 
+const menuLinks =
+    document.querySelectorAll('.menu a[data-section]');
+
+const dashboardSections =
+    document.querySelectorAll('.dashboard-section');
+
+const sectionTriggers =
+    document.querySelectorAll('[data-section-trigger]');
+
+const taskForm =
+    document.getElementById('taskForm');
+
+const todayTaskList =
+    document.getElementById('todayTaskList');
+
+const allTaskList =
+    document.getElementById('allTaskList');
+
+const taskPageSummary =
+    document.getElementById('taskPageSummary');
+
+const calendarGrid =
+    document.getElementById('calendarGrid');
+
+const calendarTitle =
+    document.getElementById('calendarTitle');
+
+const selectedDayTitle =
+    document.getElementById('selectedDayTitle');
+
+const selectedDayTasks =
+    document.getElementById('selectedDayTasks');
+
+const prevMonthBtn =
+    document.getElementById('prevMonthBtn');
+
+const nextMonthBtn =
+    document.getElementById('nextMonthBtn');
+
 /* =========================
    TIMER VARIABLES
 ========================= */
@@ -136,6 +177,21 @@ let timeLeft = totalTime;
 let timerRunning = false;
 
 let timerInterval;
+
+/* =========================
+   TASKS / CALENDAR STATE
+========================= */
+
+let tasks = [];
+
+const today = new Date();
+
+let calendarMonth = today.getMonth();
+
+let calendarYear = today.getFullYear();
+
+let selectedCalendarDate =
+    formatDate(today);
 
 /* =========================
    STATS VARIABLES
@@ -656,13 +712,499 @@ flowCards.forEach(card => {
 });
 
 /* =========================
+   INTERNAL NAVIGATION
+========================= */
+
+function setActiveSection(sectionId){
+
+    dashboardSections.forEach(section => {
+
+        section.classList.toggle(
+            'active',
+            section.id === `section-${sectionId}`
+        );
+
+    });
+
+    menuLinks.forEach(link => {
+
+        link.classList.toggle(
+            'active',
+            link.dataset.section === sectionId
+        );
+
+    });
+
+    if(sectionId === 'calendar'){
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    }
+
+    if(sectionId === 'tasks'){
+
+        renderAllTasks();
+
+    }
+
+}
+
+menuLinks.forEach(link => {
+
+    link.addEventListener('click', event => {
+
+        event.preventDefault();
+
+        setActiveSection(link.dataset.section);
+
+    });
+
+});
+
+sectionTriggers.forEach(trigger => {
+
+    trigger.addEventListener('click', () => {
+
+        setActiveSection(trigger.dataset.sectionTrigger);
+
+    });
+
+});
+
+/* =========================
+   REAL TASKS
+========================= */
+
+function formatDate(date){
+
+    const year =
+        date.getFullYear();
+
+    const month =
+        String(date.getMonth() + 1).padStart(2, '0');
+
+    const day =
+        String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+
+}
+
+function normalizeTask(task){
+
+    return {
+        id: task.id,
+        title: task.title || 'Tarea sin título',
+        due_date: task.due_date || formatDate(today),
+        priority: task.priority || 'media',
+        duration_minutes: Number(task.duration_minutes) || 30,
+        completed: Boolean(task.completed),
+    };
+
+}
+
+function getPriorityClass(priority){
+
+    const normalized =
+        String(priority || 'media').toLowerCase();
+
+    if(normalized === 'alta') return 'high';
+
+    if(normalized === 'baja') return 'low';
+
+    return 'medium';
+
+}
+
+function getPriorityIcon(priority){
+
+    const normalized =
+        String(priority || 'media').toLowerCase();
+
+    if(normalized === 'alta') return 'purple';
+
+    if(normalized === 'baja') return 'blue';
+
+    return 'orange';
+
+}
+
+function createTaskElement(task){
+
+    const taskElement =
+        document.createElement('div');
+
+    taskElement.className =
+        `task${task.completed ? ' completed' : ''}`;
+
+    taskElement.dataset.taskId =
+        task.id;
+
+    taskElement.innerHTML = `
+        <div class="task-left">
+            <input type="checkbox" ${task.completed ? 'checked' : ''}>
+            <div class="task-icon ${getPriorityIcon(task.priority)}">
+                <i class="ri-file-list-3-line"></i>
+            </div>
+            <span>${task.title}</span>
+        </div>
+
+        <div class="task-meta">
+            <span class="badge ${getPriorityClass(task.priority)}">
+                ${task.priority}
+            </span>
+            <small>${task.duration_minutes} min</small>
+            <button class="task-menu" title="Más opciones">
+                <i class="ri-more-2-fill"></i>
+            </button>
+        </div>
+    `;
+
+    const checkbox =
+        taskElement.querySelector('input');
+
+    checkbox.addEventListener('change', () => {
+
+        updateTask(task.id, {
+            completed: checkbox.checked,
+        });
+
+    });
+
+    return taskElement;
+
+}
+
+async function fetchTasks(){
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/tasks`);
+
+        if(!response.ok) throw new Error('No se pudieron cargar las tareas');
+
+        const data =
+            await response.json();
+
+        tasks =
+            data.map(normalizeTask);
+
+    }
+
+    catch(error){
+
+        console.warn(error);
+
+        tasks = [];
+
+    }
+
+    renderTodayTasks();
+    renderAllTasks();
+    renderCalendar(calendarMonth, calendarYear);
+
+}
+
+async function createTask(payload){
+
+    const response =
+        await fetch(`${API_URL}/tasks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+    if(!response.ok){
+
+        throw new Error('No se pudo crear la tarea');
+
+    }
+
+    await fetchTasks();
+
+}
+
+async function updateTask(taskId, payload){
+
+    const currentTask =
+        tasks.find(task => task.id === Number(taskId));
+
+    if(!currentTask) return;
+
+    const response =
+        await fetch(`${API_URL}/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ...currentTask,
+                ...payload,
+            }),
+        });
+
+    if(response.ok){
+
+        await fetchTasks();
+
+    }
+
+}
+
+function renderTaskList(container, taskItems){
+
+    if(!container) return;
+
+    container.innerHTML = '';
+
+    taskItems.forEach(task => {
+
+        container.appendChild(
+            createTaskElement(task)
+        );
+
+    });
+
+}
+
+function renderTodayTasks(){
+
+    const todayTasks =
+        tasks.filter(task => task.due_date === formatDate(today));
+
+    renderTaskList(
+        todayTaskList,
+        todayTasks.slice(0, 4)
+    );
+
+    const pendingCount =
+        todayTasks.filter(task => !task.completed).length;
+
+    const todayCounter =
+        document.querySelector('.tasks-title span');
+
+    if(todayCounter){
+
+        todayCounter.textContent =
+            `${pendingCount} pendientes`;
+
+    }
+
+}
+
+function renderAllTasks(){
+
+    renderTaskList(allTaskList, tasks);
+
+    if(taskPageSummary){
+
+        const pending =
+            tasks.filter(task => !task.completed).length;
+
+        taskPageSummary.textContent =
+            `${tasks.length} tareas registradas • ${pending} pendientes`;
+
+    }
+
+}
+
+function getTasksByDate(dateString){
+
+    return tasks.filter(task => task.due_date === dateString);
+
+}
+
+function renderSelectedDayTasks(dateString){
+
+    const date =
+        new Date(`${dateString}T00:00:00`);
+
+    if(selectedDayTitle){
+
+        selectedDayTitle.textContent =
+            date.toLocaleDateString('es-CO', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            });
+
+    }
+
+    renderTaskList(
+        selectedDayTasks,
+        getTasksByDate(dateString)
+    );
+
+}
+
+function renderCalendar(month, year){
+
+    if(!calendarGrid || !calendarTitle) return;
+
+    calendarGrid.innerHTML = '';
+
+    const firstDay =
+        new Date(year, month, 1);
+
+    const firstWeekday =
+        (firstDay.getDay() + 6) % 7;
+
+    const calendarStart =
+        new Date(year, month, 1 - firstWeekday);
+
+    calendarTitle.textContent =
+        firstDay.toLocaleDateString('es-CO', {
+            month: 'long',
+            year: 'numeric',
+        });
+
+    for(let index = 0; index < 42; index++){
+
+        const day =
+            new Date(calendarStart);
+
+        day.setDate(calendarStart.getDate() + index);
+
+        const dateString =
+            formatDate(day);
+
+        const dayTasks =
+            getTasksByDate(dateString);
+
+        const dayButton =
+            document.createElement('button');
+
+        dayButton.type = 'button';
+
+        dayButton.className = 'calendar-day';
+
+        dayButton.classList.toggle(
+            'is-muted',
+            day.getMonth() !== month
+        );
+
+        dayButton.classList.toggle(
+            'is-today',
+            dateString === formatDate(today)
+        );
+
+        dayButton.classList.toggle(
+            'is-selected',
+            dateString === selectedCalendarDate
+        );
+
+        dayButton.innerHTML = `
+            <span class="calendar-day-number">${day.getDate()}</span>
+            <span>
+                ${dayTasks.slice(0, 3).map(() => '<i class="calendar-task-dot"></i>').join('')}
+            </span>
+            ${dayTasks[0] ? `<span class="calendar-task-preview">${dayTasks[0].title}</span>` : ''}
+        `;
+
+        dayButton.addEventListener('click', () => {
+
+            selectedCalendarDate = dateString;
+
+            renderCalendar(calendarMonth, calendarYear);
+
+            renderSelectedDayTasks(dateString);
+
+        });
+
+        calendarGrid.appendChild(dayButton);
+
+    }
+
+    renderSelectedDayTasks(selectedCalendarDate);
+
+}
+
+if(taskForm){
+
+    taskForm.addEventListener('submit', async event => {
+
+        event.preventDefault();
+
+        const title =
+            document.getElementById('taskTitle').value.trim();
+
+        if(!title) return;
+
+        try{
+
+            await createTask({
+                title,
+                due_date: document.getElementById('taskDate').value || formatDate(today),
+                priority: document.getElementById('taskPriority').value,
+                duration_minutes: Number(document.getElementById('taskDuration').value) || 30,
+                completed: false,
+            });
+
+            taskForm.reset();
+
+            document.getElementById('taskDuration').value = 30;
+
+        }
+
+        catch(error){
+
+            alert('No se pudo crear la tarea. Revisa que el backend esté activo.');
+
+        }
+
+    });
+
+}
+
+if(prevMonthBtn){
+
+    prevMonthBtn.addEventListener('click', () => {
+
+        calendarMonth--;
+
+        if(calendarMonth < 0){
+
+            calendarMonth = 11;
+            calendarYear--;
+
+        }
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    });
+
+}
+
+if(nextMonthBtn){
+
+    nextMonthBtn.addEventListener('click', () => {
+
+        calendarMonth++;
+
+        if(calendarMonth > 11){
+
+            calendarMonth = 0;
+            calendarYear++;
+
+        }
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    });
+
+}
+
+/* =========================
    CHART.JS
 ========================= */
 
 const chartCanvas =
     document.getElementById('studyChart');
 
-if(chartCanvas){
+if(chartCanvas && window.Chart){
 
     const ctxChart =
         chartCanvas.getContext('2d');
@@ -739,3 +1281,5 @@ if(chartCanvas){
 updateTimer();
 
 loadStats();
+
+fetchTasks();
