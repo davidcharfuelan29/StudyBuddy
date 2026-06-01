@@ -325,8 +325,7 @@ const buddyImage =
 const buddyPlaceholder =
     document.getElementById('buddyPlaceholder');
 
-/* Activar cuando tengas las imágenes en assets/imagenes/ */
-const BUDDY_IMAGES_ENABLED = false;
+const BUDDY_IMAGES_ENABLED = true;
 
 function setBuddyMood(mood){
 
@@ -334,6 +333,8 @@ function setBuddyMood(mood){
 
     const moods = {
         happy: 'buddy-happy.png',
+        sad: 'buddy-sad.png',
+        greeting: 'buddy-greeting.png',
         sleep: 'buddy-sleep.png',
         excited: 'buddy-excited.png',
         tired: 'buddy-tired.png',
@@ -348,6 +349,41 @@ function setBuddyMood(mood){
 
         buddyPlaceholder.style.display = 'none';
 
+    }
+
+    /* MOOD CARD — mensajes cortos */
+    const moodMessages = {
+        happy:    ['Feliz 😊', 'Tu racha me emociona 💜'],
+        sad:      ['Triste 😢', 'Te extraño, vuelve 💔'],
+        greeting: ['¡Hola! 👋', 'Nuevo amigo en casa 🚀'],
+        sleep:    ['Zzz 😴', 'Siempre listo para ti'],
+        excited:  ['¡Eufórico! 🎉', 'Lo estás haciendo genial'],
+        tired:    ['Descanso 🧘', 'Recarga energía y vuelve'],
+    };
+
+    /* PET BUBBLE — mensaje elaborado al lado de la imagen */
+    const bubbleMessages = {
+        happy:    ['¡Racha imparable! 🔥', 'Llevas una racha activa y cada sesión te acerca más a tu mejor versión. ¡Sigue así! 💜'],
+        sad:      ['Un nuevo comienzo 💪', 'La racha se perdió, pero una sola sesión puede cambiarlo todo. ¿Comenzamos?'],
+        greeting: ['¡Bienvenido! 🚀', 'Soy Buddy, tu compañero de estudio. ¿Listo para tu primera sesión? ✨'],
+        sleep:    ['Sin preocupaciones 😴', 'Cuando quieras retomar, aquí estaré esperándote.'],
+        excited:  ['¡Sesión completada! 🎉', 'Cada sesión terminada es un paso firme hacia tu mejor versión. ¡Grandioso trabajo!'],
+        tired:    ['Momento de recargar 🧘', 'Una pausa no es rendirse, es prepararse para volver más fuerte. Te espero 💜'],
+    };
+
+    const moodTitle = document.getElementById('moodTitle');
+    const moodText  = document.getElementById('moodText');
+    const petTitle  = document.getElementById('petTitle');
+    const petText   = document.getElementById('petMessageText');
+
+    if(moodMessages[mood]){
+        if(moodTitle) moodTitle.textContent = moodMessages[mood][0];
+        if(moodText)  moodText.textContent  = moodMessages[mood][1];
+    }
+
+    if(bubbleMessages[mood]){
+        if(petTitle) petTitle.textContent = bubbleMessages[mood][0];
+        if(petText)  petText.textContent  = bubbleMessages[mood][1];
     }
 
 }
@@ -751,6 +787,25 @@ async function loadStatsFromBackend(){
                     `¡${s} días de racha, imparable! 🚀`;
 
             }
+
+        }
+
+        /* BUDDY MOOD BASED ON STREAK */
+
+        const total = stats.total_sessions;
+        const streak = stats.current_streak;
+
+        if(total === 0){
+
+            setBuddyMood('greeting');
+
+        } else if(streak === 0){
+
+            setBuddyMood('sad');
+
+        } else {
+
+            setBuddyMood('happy');
 
         }
 
@@ -2012,6 +2067,8 @@ document.addEventListener('visibilitychange', () => {
 updateTimer();
 
 loadStats();
+
+setBuddyMood('greeting');
 
 loadStatsFromBackend();
 

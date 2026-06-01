@@ -1131,7 +1131,7 @@ button:hover{
     height:10px;
     background:#1b204b;
     border-radius:999px;
-    margin:16px 0 28px;
+    margin:16px 0 16px;
     overflow:hidden;
 }
 
@@ -1147,20 +1147,22 @@ button:hover{
 .pet-content{
     position:relative;
     z-index:1;
-    display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(135px,0.82fr);
+    display:flex;
     align-items:center;
+    justify-content:space-between;
     gap:18px;
     min-width:0;
 }
 
 .pet-message{
     position:relative;
+    z-index:2;
+    flex:1 1 54%;
     background:linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03));
     border:1px solid rgba(255,255,255,0.06);
-    padding:22px;
-    border-radius:22px;
-    max-width:none;
+    padding:20px 22px;
+    border-radius:18px;
+    max-width:260px;
     min-width:0;
     box-shadow:0 18px 40px rgba(0,0,0,0.18);
 }
@@ -1168,14 +1170,14 @@ button:hover{
 .pet-message::after{
     content:"";
     position:absolute;
-    top:38px;
-    right:-12px;
-    width:24px;
-    height:24px;
+    right:-9px;
+    top:46px;
+    width:18px;
+    height:18px;
     background:rgba(255,255,255,0.055);
-    transform:rotate(45deg);
     border-top:1px solid rgba(255,255,255,0.06);
     border-right:1px solid rgba(255,255,255,0.06);
+    transform:rotate(45deg);
 }
 
 .pet-message p{
@@ -1186,12 +1188,13 @@ button:hover{
 
 .pet-mascot-slot{
     position:relative;
-    width:100%;
+    flex:0 1 46%;
+    width:auto;
     min-width:0;
-    min-height:clamp(170px,16vw,220px);
+    min-height:clamp(190px,19vw,260px);
     display:flex;
-    align-items:center;
-    justify-content:center;
+    align-items:flex-end;
+    justify-content:flex-end;
     flex-shrink:0;
     overflow:visible;
 }
@@ -1243,8 +1246,10 @@ button:hover{
 }
 
 .pet-content img.pet-mascot-img{
-    width:min(100%,220px);
-    max-height:220px;
+    width:auto;
+    height:auto;
+    max-width:100%;
+    max-height:clamp(210px,20vw,320px);
     object-fit:contain;
     animation:floatPet 4s ease-in-out infinite;
 }
@@ -1270,7 +1275,7 @@ button:hover{
 .mood-card{
     position:relative;
     z-index:1;
-    margin-top:20px;
+    margin-top:8px;
     display:flex;
     align-items:center;
     gap:15px;
@@ -1915,16 +1920,23 @@ button:hover{
     }
 
     .pet-content{
-        grid-template-columns:1fr;
+        flex-direction:column;
+        align-items:center;
         text-align:center;
-        justify-items:center;
+    }
+
+    .pet-message{
+        max-width:100%;
+    }
+
+    .pet-mascot-slot{
+        width:100%;
+        min-height:clamp(160px,48vw,250px);
+        justify-content:center;
     }
 
     .pet-message::after{
-        top:auto;
-        right:50%;
-        bottom:-12px;
-        transform:translateX(50%) rotate(45deg);
+        display:none;
     }
 
     .productivity-overview{
