@@ -64,49 +64,50 @@
                 <!-- MENU -->
                 <nav class="menu">
 
-                    <a href="#" class="active" data-section="home">
+                    <a href="#" class="active" data-section="home" data-tip="Inicio">
 
                         <i class="ri-home-5-fill"></i>
                         <span>Inicio</span>
 
                     </a>
 
-                    <a href="#" data-section="tasks">
+                    <a href="#" data-section="tasks" data-tip="Tareas">
 
                         <i class="ri-task-line"></i>
                         <span>Tareas</span>
+                        <span class="menu-badge" id="taskBadge">0</span>
 
                     </a>
 
-                    <a href="#" data-section="sessions">
+                    <a href="#" data-section="sessions" data-tip="Sesiones">
 
                         <i class="ri-timer-flash-line"></i>
                         <span>Sesiones</span>
 
                     </a>
 
-                    <a href="#" data-section="analytics">
+                    <a href="#" data-section="analytics" data-tip="Análisis">
 
                         <i class="ri-bar-chart-box-line"></i>
                         <span>Análisis</span>
 
                     </a>
 
-                    <a href="#" data-section="calendar">
+                    <a href="#" data-section="calendar" data-tip="Calendario">
 
                         <i class="ri-calendar-line"></i>
                         <span>Calendario</span>
 
                     </a>
 
-                    <a href="#" data-section="achievements">
+                    <a href="#" data-section="achievements" data-tip="Logros">
 
                         <i class="ri-medal-line"></i>
                         <span>Logros</span>
 
                     </a>
 
-                    <a href="#" data-section="settings">
+                    <a href="#" data-section="settings" data-tip="Ajustes">
 
                         <i class="ri-settings-3-line"></i>
                         <span>Ajustes</span>
@@ -149,7 +150,7 @@
 
                 <div class="welcome">
 
-                    <h1>Hola, Carlos 👋</h1>
+                    <h1>Hola, <span id="greetingName">Carlos</span> 👋</h1>
                     <p>Construyamos una sesión increíble hoy.</p>
 
                 </div>
@@ -167,8 +168,8 @@
                             <div>
 
                                 <span>Racha actual</span>
-                                <strong>12 días</strong>
-                                <small>¡Vas genial! 🔥</small>
+                                <strong id="streakCount">0 días</strong>
+                                <small id="streakMessage">Completa tu primera sesión 🔥</small>
 
                             </div>
 
@@ -516,7 +517,7 @@
 
                         <div class="tasks-title">
 
-                            <h2>Tareas de hoy</h2>
+                            <h2>Tareas pendientes</h2>
                             <span>3 pendientes</span>
 
                         </div>
@@ -858,9 +859,15 @@
 
             <section class="dashboard-section" id="section-sessions">
 
-                <div class="card placeholder-section-card">
+                <div class="card">
                     <h2>Sesiones</h2>
-                    <p>La sesión Pomodoro principal se mantiene en Inicio. Esta sección queda preparada para historial y configuración de sesiones.</p>
+                    <p style="color:#9ea4cf;font-size:14px;margin-top:4px;">Historial de tus sesiones de enfoque y descanso</p>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="sessions-empty">
+                            <i class="ri-timer-flash-line"></i>
+                            <p style="color:#9ea4cf;">No hay sesiones registradas aún. Completa un Pomodoro para ver tu historial aquí.</p>
+                        </div>
+                    </div>
                 </div>
 
             </section>
@@ -889,6 +896,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="dashboard.js"></script>
+
+    <div id="toastContainer" class="toast-container"></div>
 
 </body>
 

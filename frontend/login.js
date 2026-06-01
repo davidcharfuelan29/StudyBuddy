@@ -44,8 +44,9 @@ document.getElementById("form").addEventListener("submit", async (e) => {
     }
 
     if (isLogin) {
+        localStorage.setItem("token", data.access_token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
     } else {
         document.getElementById("message").style.color = "#34d399";
         document.getElementById("message").textContent =

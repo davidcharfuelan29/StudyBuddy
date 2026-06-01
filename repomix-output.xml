@@ -1,0 +1,6251 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+backend/
+  __init__.py
+  auth.py
+  database.py
+  main.py
+  models.py
+  schemas.py
+frontend/
+  assets/
+    iconos/
+      icon-analytics.svg
+      icon-eye.svg
+      icon-focus.svg
+      icon-lock.svg
+      icon-mail.svg
+      icon-task.svg
+    imagenes/
+      buddy-excited.png
+      buddy-happy.png
+      buddy-sleep.png
+      buddy-tired.png
+      fondo_dashboard_morado.jpg
+      google.png
+      logo.png
+      mascot.png
+      splash.png
+    sonidos/
+      complete.mp3
+  dashboard.css
+  dashboard.html
+  dashboard.js
+  index.html
+  login.css
+  login.html
+  login.js
+  splash.css
+  splash.js
+.gitignore
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="backend/auth.py">
+from datetime import datetime, timedelta, timezone
+from jose import JWTError, jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+import os
+
+from .database import SessionLocal
+from .models import User
+from .schemas import TokenData
+
+SECRET_KEY = os.getenv("SECRET_KEY", "studybuddy-dev-secret-change-in-prod")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_HOURS = 24
+
+security = HTTPBearer(auto_error=False)
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    )
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticación requerida",
+        )
+
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("user_id")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido",
+            )
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido o expirado",
+        )
+
+    db = SessionLocal()
+
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuario no encontrado",
+            )
+
+        return user
+
+    finally:
+        db.close()
+</file>
+
+<file path="backend/schemas.py">
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+# --- TASKS ---
+
+class TaskCreate(BaseModel):
+    title: str
+    due_date: Optional[str] = None
+    priority: str = "media"
+    duration_minutes: int = 30
+    completed: bool = False
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[str] = None
+    priority: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    completed: Optional[bool] = None
+
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    due_date: Optional[str] = None
+    priority: str
+    duration_minutes: int
+    completed: bool
+    user_id: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
+# --- USERS ---
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
+# --- AUTH ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+class TokenData(BaseModel):
+    user_id: Optional[int] = None
+
+
+# --- SESSION ---
+
+class SessionCreate(BaseModel):
+    duration_minutes: int
+    mode: str = "pomodoro"
+
+class SessionResponse(BaseModel):
+    id: int
+    user_id: int
+    duration_minutes: int
+    mode: str
+    created_at: str
+
+    model_config = {"from_attributes": True}
+
+
+# --- STATS ---
+
+class StatsResponse(BaseModel):
+    total_sessions: int
+    total_minutes: int
+    current_streak: int
+    xp: int
+    level: int
+</file>
+
+<file path="backend/__init__.py">
+
+</file>
+
+<file path="backend/database.py">
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+
+Base = declarative_base()
+</file>
+
+<file path="frontend/assets/iconos/icon-analytics.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M14 50H50" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <rect x="18" y="34" width="6" height="12" rx="2" fill="#A855F7"/>
+  <rect x="30" y="26" width="6" height="20" rx="2" fill="#A855F7"/>
+  <rect x="42" y="18" width="6" height="28" rx="2" fill="#A855F7"/>
+  <path d="M20 24L32 16L44 10" stroke="#A855F7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-eye.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 12C4.5 7.5 8 5 12 5C16 5 19.5 7.5 22 12C19.5 16.5 16 19 12 19C8 19 4.5 16.5 2 12Z" stroke="#C4B5FD" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="3" stroke="#A78BFA" stroke-width="1.8"/>
+  <path d="M4 20L20 4" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-focus.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="18" stroke="#A855F7" stroke-width="4"/>
+  <circle cx="32" cy="32" r="8" stroke="#A855F7" stroke-width="4"/>
+  <path d="M32 32L44 20" stroke="#A855F7" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="44" cy="20" r="4" fill="#A855F7"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-lock.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5" y="10" width="14" height="10" rx="3" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
+  <path d="M8 10V8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8V10" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="12" cy="15" r="1.5" fill="#A78BFA"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-mail.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="3" y="5" width="18" height="14" rx="4" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
+  <path d="M5 7L12 13L19 7" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-task.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="14" y="10" width="36" height="44" rx="8" stroke="#A855F7" stroke-width="3"/>
+  <rect x="24" y="6" width="16" height="8" rx="4" fill="#A855F7"/>
+  <path d="M22 24H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 34H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 44H34" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+</svg>
+</file>
+
+<file path="frontend/login.css">
+/* RESET + BODY */
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: #020617;
+    color: white;
+
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    overflow: hidden;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* 🌌 FONDO ANIMADO */
+.bg-glow {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+
+    background: radial-gradient(circle at 20% 20%, #7c3aed33, transparent),
+                radial-gradient(circle at 80% 70%, #6366f133, transparent);
+
+    filter: blur(100px);
+    animation: move 10s infinite alternate;
+
+    z-index: -1;
+}
+
+@keyframes move {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(40px); }
+}
+
+/* CONTENEDOR */
+.container {
+    display: flex;
+    width: 1100px;
+    height: 690px;
+
+    backdrop-filter: blur(20px);
+    border-radius: 30px;
+    overflow: hidden;
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    box-shadow: 
+    0 0 80px rgba(0,0,0,0.7),
+    0 0 40px rgba(99,102,241,0.2);
+
+    animation: fadeIn 0.8s ease;
+}
+
+/* ANIMACIÓN */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* IZQUIERDA */
+
+.mascot-bg {
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-30px);
+
+    width: 95%;
+    height: auto;
+
+    object-fit: contain;
+
+    opacity: 1;
+
+    z-index: 1;
+
+    pointer-events: none;
+
+    filter:
+        drop-shadow(0 0 40px rgba(99,102,241,0.35))
+        brightness(1)
+        contrast(1.05);
+}
+
+
+.left {
+    flex: 1;
+    padding: 50px;
+    position: relative;
+    overflow: hidden;
+
+    background:
+    linear-gradient(
+        180deg,
+        rgba(15,23,42,0.95),
+        rgba(2,6,23,0.98)
+    );
+
+    z-index: 2;
+}
+
+.left > *:not(.mascot-bg) {
+    position: relative;
+    z-index: 2;
+}
+
+.logo {
+    
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    font-size: 36px;
+    font-weight: 800;
+
+    margin-bottom: 35px;
+    letter-spacing: 1px;
+}
+
+.logo-img {
+    width: 100px;
+    height: 100px;
+
+    object-fit: contain;
+
+    filter:
+        drop-shadow(0 0 20px rgba(167,139,250,0.7));
+
+    transition: 0.3s ease;
+}
+
+.logo-img:hover {
+    transform: scale(1.05);
+}
+
+
+.highlight {
+    color: #a78bfa;
+
+    text-shadow:
+        0 0 12px rgba(167,139,250,0.7),
+        0 0 25px rgba(99,102,241,0.4);
+}
+
+.left h1 {
+    font-size: 32px;   /* controla tamaño general */
+    line-height: 1.15;
+    margin-bottom: 15px;
+}
+
+.left h1 span {
+    color: #a78bfa;
+        text-shadow: 0 0 15px rgba(167,139,250,0.8);
+}
+
+.left p {
+    color: #9ca3af;
+
+    font-size: 15px;
+
+    line-height: 1.5;
+
+    margin-top: 6px;
+
+    max-width: 420px;
+}
+
+.mascot {
+    width: 260px;
+    margin-top: 40px;
+    transition: 0.3s;
+    animation: float 3s ease-in-out infinite;
+}
+
+.mascot:hover {
+    transform: scale(1.05) rotate(2deg);
+}
+
+/* FEATURES */
+
+.features {
+    position: absolute;
+
+    bottom: -255px;
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    width: 80%;
+
+    display: flex;
+    justify-content: center ; 
+    gap: 15px;
+    align-items: center;
+
+    z-index: 3;
+}
+
+.features div {
+    width: 80px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 8px 6px;
+
+    border-radius: 20px;
+
+    background: rgba(255,255,255,0.03);
+
+    backdrop-filter: blur(10px);
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    opacity: 0.85;
+
+    transition: 0.3s;
+
+    cursor: pointer;
+}
+
+.features div:hover {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px #8b5cf6);
+
+    transform:
+    translateY(-8px)
+    scale(1.05);
+
+    transition: 0.3s;
+}
+
+.features img {
+    width: 35px;
+    margin-bottom: -8px;
+
+    filter:
+        drop-shadow(0 0 10px rgba(99,102,241,0.4));
+    transition: 0.3s ease;
+
+    animation: floatIcon 3s ease-in-out infinite;
+}
+
+.features p {
+    margin: 0;
+
+    font-size: 12px;
+    font-weight: 500;
+
+    color: #d1d5db;
+}
+
+/* ✨ ANIMACIÓN ICONOS */
+@keyframes floatIcon {
+
+    0%{
+        transform: translateY(0px);
+        filter:
+        drop-shadow(0 0 10px rgba(168,85,247,0.4));
+    }
+
+    50%{
+        transform: translateY(-8px);
+        filter:
+        drop-shadow(0 0 22px rgba(168,85,247,0.9));
+    }
+
+    100%{
+        transform: translateY(0px);
+        filter:
+        drop-shadow(0 0 10px rgba(168,85,247,0.4));
+    }
+}
+/* DERECHA */
+
+.right {
+    flex: 1;
+    padding: 70px;
+    padding-top: 35px;
+
+    background: rgba(2,6,23,0.65);
+
+    backdrop-filter: blur(30px);
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: flex-start;
+}
+
+/* TITULO */
+
+.right h2 {
+    font-size: 36px;
+    font-weight: 700;
+
+    margin-bottom: 8px;
+
+    width: 100%;
+    max-width: 360px;
+
+    line-height: 1.1;
+}
+
+.subtitle {
+    width: 100%;
+    max-width: 360px;
+
+    color: #9ca3af;
+
+    font-size: 14px;
+
+    line-height: 1.4;
+
+    margin-bottom: 10px;
+}
+
+/*  FORMULARIO */   
+form {
+    width: 100%;
+    max-width: 360px;
+    margin-top: 25px;
+    transform: translateY(-20px);
+}
+
+/* INPUTS */
+
+.input-group {
+    position: relative;
+    margin-top: 25px;
+}
+
+.input-group input {
+    width: 100%;
+    height: 58px;
+
+    padding: 18px;
+    padding-left: 50px;
+
+    border: none;
+    border-radius: 16px;
+
+    background: rgba(2,6,23,0.85);
+
+    color: white;
+    outline: none;
+
+    border: 1px solid #1f2937;
+
+    transition: 0.3s;
+
+    font-size: 15px;
+
+    box-sizing: border-box;
+}
+
+.input-group input:focus {
+    border: 1px solid #6366f1;
+    box-shadow: 0 0 15px rgba(99,102,241,0.6);
+    transform: scale(1.02);
+}
+
+/* LABEL ANIMADO */
+.input-group label {
+    position: absolute;
+    top: 19px;
+    left: 45px;
+    color: #6b7280;
+    transition: 0.3s;
+    pointer-events: none;
+}
+
+.input-group input:focus + label,
+.input-group input:valid + label {
+    top: -10px;
+    left: 10px;
+    font-size: 12px;
+    color: #a78bfa;
+    background: #020617;
+    padding: 0 5px;
+}
+
+/* ICONOS */
+.input-icon {
+    position: absolute;
+    left: 10px;
+    top: 18px;
+    width: 23px;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+
+.eye {
+    position: absolute;
+    right: 10px;
+    top: 19px;
+    width: 22px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+
+/* BOTÓN */
+button {
+    width: 100%;
+    margin-top: 25px;
+    padding: 18px;
+
+    border: none;
+    border-radius: 16px;
+
+    background: linear-gradient(135deg, #9333ea, #6366f1);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+
+    cursor: pointer;
+    transition: 0.3s;
+
+    box-shadow: 0 10px 30px rgba(99,102,241,0.4);
+}
+
+button:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(99,102,241,0.5);
+}
+
+/* DIVIDER */
+
+.divider {
+    width: 100%;
+    max-width: 360px;
+
+    display: flex;
+    align-items: center;
+
+    margin-top: 30px;
+    margin-bottom: 10px;
+}
+
+.divider span {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+}
+
+.divider p {
+    margin: 0 10px;
+    font-size: 12px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+/* SOCIAL LOGIN */
+.social-login {
+    width: 100%;
+    margin-top: 10px;
+
+    display: flex;
+    justify-content: center; /* 👈 esto lo centra */
+}
+
+.social-btn {
+    width: 100%;
+    max-width: 200px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    background: #020617;
+    border: 1px solid #1f2937;
+    padding: 12px;
+
+    border-radius: 16px;
+
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.social-btn:hover {
+    border: 1px solid #6366f1;
+    box-shadow: 0 0 15px rgba(99,102,241,0.5);
+    transform: translateY(-2px);
+}
+
+.social-btn img {
+    width: 20px;
+}
+
+/* LINKS */
+.switch {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.switch span {
+    color: #a78bfa;
+    cursor: pointer;
+}
+
+/* MENSAJES */
+#message {
+    margin-top: 10px;
+    color: #f87171;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        width: 90%;
+        height: auto;
+    }
+
+    .left {
+        display: none;
+    }
+}
+
+
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+</file>
+
+<file path="frontend/login.html">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>StudyBuddy</title>
+<link rel="stylesheet" href="login.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="bg-glow"></div>
+
+<div class="container">
+
+    <!-- IZQUIERDA -->
+    <div class="left">
+        
+    <img src="assets/imagenes/mascot.png" class="mascot-bg">
+        <div class="logo">
+    <img src="assets/imagenes/logo.png" alt="Logo StudyBuddy" class="logo-img">
+    <span>Study<span class="highlight">Buddy</span></span>
+    </div>
+
+        <h1>
+            Tu compañero de estudio<br>
+            para alcanzar <span>tus metas 🚀</span>
+        </h1>
+
+        <p>Organiza tus tareas, mantén el enfoque y mejora tu productividad cada día.</p>
+
+        
+        <div class="features">
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-task.svg" class="feature-icon">
+                <p>Organiza</p>
+            </div>
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-focus.svg" class="feature-icon">
+                <p>Enfócate</p>
+            </div>
+            <div class ="feature-card">
+                <img src="assets/iconos/icon-analytics.svg" class="feature-icon">
+                <p>Analiza</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DERECHA -->
+    <div class="right">
+
+        <h2 id="title">¡Bienvenido a tu mejor version! 👋</h2>
+        <p class="subtitle">
+        Inicia sesión para continuar con tu productividad.
+        </p>
+
+        <form id="form">
+
+            <div class="input-group">
+                <img src="assets/iconos/icon-mail.svg" class="input-icon">
+                <input type="email" id="email" required>
+                <label>Correo electrónico</label>
+            </div>
+
+            <div class="input-group password">
+                <img src="assets/iconos/icon-lock.svg" class="input-icon">
+                <input type="password" id="password" required>
+                <label>Contraseña</label>
+                <img src="assets/iconos/icon-eye.svg" class="eye" onclick="togglePassword()">
+            </div>
+
+            <button type="submit" id="submitBtn">Iniciar sesión</button>
+
+            <div class="divider">
+                <span></span>
+                <p>o continuar con</p>
+                <span></span>
+            </div>
+
+            <div class="social-login">
+                <button type="button" class="social-btn">
+                    <img src="assets/imagenes/google.png"> Google
+                </button> 
+
+            </div>
+
+        </form>
+
+        <p class="switch">
+            ¿No tienes cuenta? <span id="switchMode">Regístrate</span>
+        </p>
+
+        <p id="message"></p>
+
+    </div>
+
+</div>
+
+<script src="login.js"></script>
+</body>
+</html>
+</file>
+
+<file path="frontend/login.js">
+const API_URL = "http://127.0.0.1:8000";
+
+let isLogin = true;
+
+// 👁️ mostrar contraseña
+function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
+}
+
+// 🔁 cambiar modo
+document.getElementById("switchMode").onclick = () => {
+    isLogin = !isLogin;
+
+    document.getElementById("title").textContent =
+        isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
+
+    document.getElementById("submitBtn").textContent =
+        isLogin ? "Iniciar sesión" : "Registrarse";
+};
+
+// 🚀 submit
+document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const endpoint = isLogin ? "/login" : "/register";
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        document.getElementById("message").textContent = data.detail;
+        return;
+    }
+
+    if (isLogin) {
+        localStorage.setItem("token", data.access_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.location.href = "dashboard.html";
+    } else {
+        document.getElementById("message").style.color = "#34d399";
+        document.getElementById("message").textContent =
+            "Cuenta creada ✔ ahora inicia sesión";
+    }
+});
+</file>
+
+<file path="frontend/splash.css">
+:root {
+    --bg-dark: #0b0f2a;
+    --primary: #7c5cff;
+    --primary-glow: #9b7bff;
+    --text-light: #ffffff;
+    --text-muted: #b8b8d1;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #141a3a 0%, var(--bg-dark) 70%);
+    font-family: "Poppins", sans-serif;
+    color: var(--text-light);
+    overflow: hidden;
+}
+
+/* PARTICULAS */
+
+#particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+/* CONTENEDOR */
+
+.splash-container {
+    position: relative;
+    z-index: 2;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    width: 100%;
+    height: 100vh;
+
+    gap: 0px;
+
+    animation: fadeIn 1s ease forwards;
+}
+
+/* LOGO */
+
+.logo {
+    width: 95px;
+
+    margin-bottom: 8px;
+
+    animation:
+        float 3s ease-in-out infinite,
+        pulseGlow 3s infinite;
+
+    filter: drop-shadow(0 0 18px rgba(124,92,255,0.55));
+}
+
+/* TITULO */
+.title {
+    font-size: 58px;
+
+    font-weight: 700;
+
+    letter-spacing: -1px;
+
+    background: linear-gradient(
+        90deg,
+        #ffffff,
+        #d6cbff,
+        #9b7bff
+    );
+
+    background-size: 200% auto;
+
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation: glowText 5s linear infinite;
+
+    text-shadow:
+        0 0 18px rgba(124,92,255,0.18);
+}
+
+/* SUBTITULO */
+.subtitle {
+    font-size: 16px;
+
+    font-weight: 400;
+
+    color: rgba(255,255,255,0.68);
+
+    letter-spacing: 0.5px;
+}
+
+/* IMAGEN CENTRAL */
+
+.mascot {
+    width: 500px;
+    max-width: 80%;
+
+    margin: 0px 0;
+
+    animation: float 3s ease-in-out infinite;
+
+    filter: drop-shadow(0 0 25px rgba(124, 92, 255, 0.35));
+}
+
+/* TEXTO LOADING */
+
+.loading-text {
+    color: var(--text-light);
+
+    font-size: 13px;
+
+    opacity: 0.75;
+
+    letter-spacing: 0.5px;
+}
+
+/* BARRA */
+
+.loader {
+    width: 360px;
+    height: 10px;
+
+    background: #1a1f3d;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    width: 0%;
+
+    background: linear-gradient(
+        90deg,
+        var(--primary),
+        var(--primary-glow)
+    );
+
+    border-radius: 20px;
+
+    animation: loading 5s ease forwards;
+}
+
+/* ANIMACIONES */
+
+@keyframes loading {
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+@keyframes glowText {
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+@keyframes pulseGlow {
+
+    0% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 28px rgba(124,92,255,0.8));
+    }
+
+    100% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+}
+</file>
+
+<file path="frontend/splash.js">
+const canvas = document.getElementById("particles");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particlesArray = [];
+
+class Particle {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+    }
+
+    draw() {
+        ctx.fillStyle = "rgba(124, 92, 255, 0.6)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function init() {
+    for (let i = 0; i < 80; i++) {
+        particlesArray.push(new Particle());
+    }
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particlesArray.forEach(particle => {
+        particle.update();
+        particle.draw();
+    });
+    requestAnimationFrame(animate);
+}
+
+init();
+animate();
+
+
+// 🔁 Redirección del splash
+const SPLASH_TIME = 5000;
+
+setTimeout(() => {
+    document.body.style.transition = "opacity 0.8s ease";
+    document.body.style.opacity = "0";
+
+    setTimeout(() => {
+        window.location.href = "login.html";
+    }, 800);
+
+}, SPLASH_TIME);
+
+
+// 📏 Ajustar tamaño si cambia la ventana
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+</file>
+
+<file path="requirements.txt">
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.13.0
+bcrypt==4.0.1
+certifi==2026.4.22
+click==8.3.3
+dnspython==2.8.0
+email-validator==2.3.0
+fastapi==0.136.1
+fastapi-cli==0.0.24
+fastapi-cloud-cli==0.17.1
+fastar==0.11.0
+greenlet==3.5.0
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.7.1
+httpx==0.28.1
+idna==3.13
+Jinja2==3.1.6
+markdown-it-py==4.0.0
+MarkupSafe==3.0.3
+mdurl==0.1.2
+passlib==1.7.4
+psycopg2-binary==2.9.12
+pydantic==2.13.3
+pydantic-extra-types==2.11.1
+pydantic-settings==2.14.0
+pydantic_core==2.46.3
+Pygments==2.20.0
+python-dotenv==1.2.2
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.27
+PyYAML==6.0.3
+rich==15.0.0
+rich-toolkit==0.19.7
+rignore==0.7.6
+sentry-sdk==2.58.0
+shellingham==1.5.4
+SQLAlchemy==2.0.49
+starlette==1.0.0
+typer==0.25.0
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+urllib3==2.6.3
+uvicorn==0.46.0
+uvloop==0.22.1
+watchfiles==1.1.1
+websockets==16.0
+</file>
+
+<file path="backend/models.py">
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+from .database import Base
+
+# 🔹 MODELO TASK
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    due_date = Column(String, nullable=True)
+    priority = Column(String, default="media")
+    duration_minutes = Column(Integer, default=30)
+    completed = Column(Boolean, default=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+# 🔹 MODELO USER
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
+
+    tasks = relationship("Task", backref="owner")
+
+
+# 🔹 MODELO SESSION (temporizador Pomodoro)
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    duration_minutes = Column(Integer, default=25)
+    mode = Column(String, default="pomodoro")
+    created_at = Column(String, default=None)
+</file>
+
+<file path=".gitignore">
+.venv
+.vscode
+__pycache__
+.env
+</file>
+
+<file path="frontend/dashboard.js">
+console.log("StudyBuddy Dashboard Loaded");
+
+const API_URL = "http://127.0.0.1:8000";
+
+function getAuthHeaders(){
+    const token = localStorage.getItem("token");
+    const headers = {"Content-Type": "application/json"};
+    if(token){
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+if(!localStorage.getItem("token")){
+    window.location.href = "login.html";
+}
+
+/* =========================
+   TOAST SYSTEM
+========================= */
+
+function showToast(message, type = 'info', icon){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const icons = {
+        success: 'ri-checkbox-circle-fill',
+        info: 'ri-information-fill',
+        warning: 'ri-alert-fill',
+        error: 'ri-close-circle-fill',
+    };
+
+    const toast =
+        document.createElement('div');
+
+    toast.className =
+        `toast ${type}`;
+
+    toast.innerHTML = `
+        <i class="${icon || icons[type] || icons.info}"></i>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+
+        if(toast.parentNode){
+
+            toast.remove();
+
+        }
+
+    }, 4000);
+
+}
+
+/* =========================
+   PARTICLES SYSTEM
+========================= */
+
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particlesArray = [];
+
+/* CREATE PARTICLES */
+
+for(let i = 0; i < 80; i++){
+
+    particlesArray.push({
+
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+
+        radius: Math.random() * 2.2,
+
+        speedY: Math.random() * 0.5 + 0.2,
+
+        opacity: Math.random()
+
+    });
+
+}
+
+/* ANIMATE PARTICLES */
+
+function animateParticles(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    particlesArray.forEach(particle => {
+
+        particle.y -= particle.speedY;
+
+        if(particle.y < 0){
+
+            particle.y = canvas.height;
+            particle.x = Math.random() * canvas.width;
+
+        }
+
+        ctx.beginPath();
+
+        ctx.arc(
+            particle.x,
+            particle.y,
+            particle.radius,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = `rgba(124,92,255,${particle.opacity})`;
+
+        ctx.fill();
+
+    });
+
+    requestAnimationFrame(animateParticles);
+
+}
+
+animateParticles();
+
+/* RESPONSIVE */
+
+window.addEventListener('resize', () => {
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+});
+
+/* =========================
+   DOM ELEMENTS
+========================= */
+
+const timerDisplay =
+    document.getElementById('timer');
+
+const startButton =
+    document.getElementById('startBtn');
+
+const pauseButton =
+    document.getElementById('pauseBtn');
+
+const resetButton =
+    document.getElementById('resetBtn');
+
+const progressCircle =
+    document.querySelector('.progress-ring-circle');
+
+const sessionStatus =
+    document.getElementById('sessionStatus');
+
+const flowCards =
+    document.querySelectorAll('.flow-card');
+
+const focusModeLabel =
+    document.getElementById('focusModeLabel');
+
+const sidebar =
+    document.querySelector('.sidebar');
+
+const sidebarToggle =
+    document.getElementById('sidebarToggle');
+
+const menuLinks =
+    document.querySelectorAll('.menu a[data-section]');
+
+const dashboardSections =
+    document.querySelectorAll('.dashboard-section');
+
+const sectionTriggers =
+    document.querySelectorAll('[data-section-trigger]');
+
+const taskForm =
+    document.getElementById('taskForm');
+
+const todayTaskList =
+    document.getElementById('todayTaskList');
+
+const allTaskList =
+    document.getElementById('allTaskList');
+
+const taskPageSummary =
+    document.getElementById('taskPageSummary');
+
+const calendarGrid =
+    document.getElementById('calendarGrid');
+
+const calendarTitle =
+    document.getElementById('calendarTitle');
+
+const selectedDayTitle =
+    document.getElementById('selectedDayTitle');
+
+const selectedDayTasks =
+    document.getElementById('selectedDayTasks');
+
+const prevMonthBtn =
+    document.getElementById('prevMonthBtn');
+
+const nextMonthBtn =
+    document.getElementById('nextMonthBtn');
+
+/* =========================
+   TIMER VARIABLES
+========================= */
+
+const RING_RADIUS = 130;
+
+const circumference =
+    2 * Math.PI * RING_RADIUS;
+
+progressCircle.style.strokeDasharray =
+    circumference;
+
+progressCircle.style.strokeDashoffset = 0;
+
+let currentMode = 25;
+
+let totalTime = currentMode * 60;
+
+let timeLeft = totalTime;
+
+let timerRunning = false;
+
+let timerInterval;
+
+/* =========================
+   TASKS / CALENDAR STATE
+========================= */
+
+let tasks = [];
+
+const today = new Date();
+
+let calendarMonth = today.getMonth();
+
+let calendarYear = today.getFullYear();
+
+let selectedCalendarDate =
+    formatDate(today);
+
+/* =========================
+   STATS VARIABLES
+========================= */
+
+let completedSessions =
+    Number(localStorage.getItem('completedSessions')) || 0;
+
+let totalStudyMinutes =
+    Number(localStorage.getItem('studyMinutes')) || 0;
+
+/* =========================
+   XP SYSTEM
+========================= */
+
+let currentXP =
+    Number(localStorage.getItem('currentXP')) || 0;
+
+let currentLevel =
+    Number(localStorage.getItem('currentLevel')) || 1;
+
+const maxXP = 350;
+
+/* =========================
+   SOUND
+========================= */
+
+const completeSound =
+    new Audio('assets/sonidos/complete.mp3');
+
+
+/* =========================
+   BUDDY STATES
+========================= */
+
+const BUDDY_BASE = 'assets/imagenes/';
+
+const buddyImage =
+    document.getElementById('buddyImage');
+
+const buddyPlaceholder =
+    document.getElementById('buddyPlaceholder');
+
+/* Activar cuando tengas las imágenes en assets/imagenes/ */
+const BUDDY_IMAGES_ENABLED = false;
+
+function setBuddyMood(mood){
+
+    if(!BUDDY_IMAGES_ENABLED || !buddyImage) return;
+
+    const moods = {
+        happy: 'buddy-happy.png',
+        sleep: 'buddy-sleep.png',
+        excited: 'buddy-excited.png',
+        tired: 'buddy-tired.png',
+    };
+
+    if(!moods[mood]) return;
+
+    buddyImage.src = `${BUDDY_BASE}${moods[mood]}`;
+    buddyImage.classList.remove('is-hidden');
+
+    if(buddyPlaceholder){
+
+        buddyPlaceholder.style.display = 'none';
+
+    }
+
+}
+
+/* =========================
+   LOAD STATS
+========================= */
+
+function loadStats(){
+
+    /* SESSIONS */
+
+    const sessionsElement =
+        document.getElementById('sessionsCount');
+
+    if(sessionsElement){
+
+        sessionsElement.textContent =
+            completedSessions;
+
+    }
+
+    /* STUDY HOURS */
+
+    const hours =
+        Math.floor(totalStudyMinutes / 60);
+
+    const studyHoursElement =
+        document.getElementById('studyHours');
+
+    if(studyHoursElement){
+
+        studyHoursElement.textContent =
+            `${hours}h`;
+
+    }
+
+    /* CONSISTENCY */
+
+    const consistencyElement =
+        document.getElementById('consistency');
+
+    if(consistencyElement){
+
+        const consistency =
+            completedSessions > 0
+                ? Math.min(100, Math.round((completedSessions / 7) * 100))
+                : 100;
+
+        consistencyElement.textContent = `${consistency}%`;
+
+    }
+
+    /* XP TEXT */
+
+    const xpText =
+        document.getElementById('xpText');
+
+    if(xpText){
+
+        xpText.textContent =
+            `${currentXP} / ${maxXP} XP`;
+
+    }
+
+    /* LEVEL */
+
+    const levelText =
+        document.getElementById('levelText');
+
+    if(levelText){
+
+        levelText.textContent =
+            `Nivel ${currentLevel}`;
+
+    }
+
+    /* XP BAR */
+
+    const xpFill =
+        document.getElementById('xpFill');
+
+    if(xpFill){
+
+        const xpPercent =
+            (currentXP / maxXP) * 100;
+
+        xpFill.style.width =
+            `${xpPercent}%`;
+
+    }
+
+}
+
+/* =========================
+   UPDATE TIMER
+========================= */
+
+function updateTimer(){
+
+    const minutes =
+        Math.floor(timeLeft / 60);
+
+    const seconds =
+        timeLeft % 60;
+
+    timerDisplay.textContent =
+        `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+
+    document.title =
+        `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')} • StudyBuddy`;
+
+    const progress =
+        timeLeft / totalTime;
+
+    progressCircle.style.strokeDashoffset =
+        circumference * (1 - progress);
+
+}
+
+/* =========================
+   START TIMER
+========================= */
+
+function startPomodoro(){
+
+    if(timerRunning) return;
+
+    timerRunning = true;
+
+    setBuddyMood('happy');
+
+    document.querySelector('.circle')
+        .classList.add('running');
+
+    startButton.innerHTML = `
+        <i class="ri-loader-4-line"></i>
+        En progreso
+    `;
+
+    timerInterval = setInterval(() => {
+
+        timeLeft--;
+
+        updateTimer();
+
+        if(timeLeft <= 0){
+
+            clearInterval(timerInterval);
+
+            timerRunning = false;
+
+            document.querySelector('.circle')
+                .classList.remove('running');
+
+            /* =========================
+               SAVE SESSION
+            ========================= */
+
+            completedSessions++;
+
+            totalStudyMinutes += currentMode;
+
+            saveSessionToBackend(currentMode, 'pomodoro');
+
+            /* =========================
+               XP SYSTEM
+            ========================= */
+
+            currentXP += 50;
+
+            if(currentXP >= maxXP){
+
+                currentXP = 0;
+
+                currentLevel++;
+
+                showToast(
+                    `¡Subiste al nivel ${currentLevel}! 🎉`,
+                    'success'
+                );
+
+            }
+
+            /* =========================
+               SAVE LOCAL STORAGE
+            ========================= */
+
+            localStorage.setItem(
+                'completedSessions',
+                completedSessions
+            );
+
+            localStorage.setItem(
+                'studyMinutes',
+                totalStudyMinutes
+            );
+
+            localStorage.setItem(
+                'currentXP',
+                currentXP
+            );
+
+            localStorage.setItem(
+                'currentLevel',
+                currentLevel
+            );
+
+            /* =========================
+               UPDATE UI
+            ========================= */
+
+            loadStats();
+
+            /* PET MESSAGE */
+
+            const petTitle =
+                document.getElementById('petTitle');
+
+            if(petTitle){
+
+                petTitle.textContent =
+                    '¡Excelente trabajo! Sigue así 🚀';
+
+            }
+            setBuddyMood('excited');
+
+            /* SOUND */
+
+            completeSound.play().catch(() => {});
+
+            /* BUTTON */
+
+            startButton.innerHTML = `
+                <i class="ri-check-line"></i>
+                Completado
+            `;
+
+            /* ALERT */
+
+            showToast(
+                'Sesión completada 🎉 ¡Excelente trabajo!',
+                'success'
+            );
+
+        }
+
+    },1000);
+
+}
+
+/* =========================
+   PAUSE TIMER
+========================= */
+
+function pausePomodoro(){
+
+    setBuddyMood('tired');
+
+    clearInterval(timerInterval);
+
+    timerRunning = false;
+
+    document.querySelector('.circle')
+        .classList.remove('running');
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Continuar
+    `;
+
+}
+
+/* =========================
+   RESET TIMER
+========================= */
+
+function resetPomodoro(){
+
+    setBuddyMood('sleep');
+
+    clearInterval(timerInterval);
+
+    timerRunning = false;
+
+    document.querySelector('.circle')
+        .classList.remove('running');
+
+    timeLeft = totalTime;
+
+    updateTimer();
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar
+    `;
+
+}
+
+/* =========================
+   SAVE SESSION TO BACKEND
+========================= */
+
+async function saveSessionToBackend(minutes, mode){
+
+    try{
+
+        await fetch(`${API_URL}/sessions`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                duration_minutes: minutes,
+                mode: mode || 'pomodoro',
+            }),
+        });
+
+    }
+
+    catch(error){
+
+        console.warn('No se pudo guardar la sesión en el backend:', error);
+
+    }
+
+}
+
+/* =========================
+   LOAD STATS FROM BACKEND
+========================= */
+
+async function loadStatsFromBackend(){
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/stats`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(!response.ok) return;
+
+        const stats = await response.json();
+
+        completedSessions = stats.total_sessions;
+        totalStudyMinutes = stats.total_minutes;
+
+        localStorage.setItem('completedSessions', completedSessions);
+        localStorage.setItem('studyMinutes', totalStudyMinutes);
+        localStorage.setItem('currentXP', stats.xp);
+        localStorage.setItem('currentLevel', stats.level);
+
+        currentXP = stats.xp;
+        currentLevel = stats.level;
+
+        loadStats();
+
+    }
+
+    catch(error){
+
+        console.warn('No se pudieron cargar stats del backend:', error);
+
+    }
+
+}
+
+/* =========================
+   BUTTON EVENTS
+========================= */
+
+startButton.addEventListener(
+    'click',
+    startPomodoro
+);
+
+pauseButton.addEventListener(
+    'click',
+    pausePomodoro
+);
+
+resetButton.addEventListener(
+    'click',
+    resetPomodoro
+);
+
+/* =========================
+   SIDEBAR TOGGLE
+========================= */
+
+sidebarToggle.addEventListener('click', () => {
+
+    sidebar.classList.toggle('collapsed');
+
+});
+
+/* =========================
+   LOGOUT BUTTON
+========================= */
+
+const logoutBtn = document.querySelector('.logout-btn');
+
+if(logoutBtn){
+
+    logoutBtn.addEventListener('click', () => {
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+
+    });
+
+}
+
+/* =========================
+   SESSION MODES (FLOW CARDS)
+========================= */
+
+function applySessionMode(minutes){
+
+    currentMode = minutes;
+
+    totalTime = minutes * 60;
+
+    timeLeft = totalTime;
+
+    clearInterval(timerInterval);
+
+    timerRunning = false;
+
+    document.querySelector('.circle')
+        ?.classList.remove('running');
+
+    updateTimer();
+
+    if(minutes === 25){
+
+        if(sessionStatus){
+
+            sessionStatus.innerHTML = `
+                <span></span>
+                Modo enfoque
+            `;
+
+        }
+
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Enfocado';
+
+        }
+
+        progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    }
+
+    else if(minutes === 5){
+
+        if(sessionStatus){
+
+            sessionStatus.innerHTML = `
+                <span></span>
+                Descanso corto
+            `;
+
+        }
+
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Descanso';
+
+        }
+
+        progressCircle.style.stroke = '#34d399';
+
+    }
+
+    else{
+
+        if(sessionStatus){
+
+            sessionStatus.innerHTML = `
+                <span></span>
+                Descanso largo
+            `;
+
+        }
+
+        if(focusModeLabel){
+
+            focusModeLabel.textContent = 'Descanso largo';
+
+        }
+
+        progressCircle.style.stroke = '#f59e0b';
+
+    }
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar sesión
+    `;
+
+}
+
+function selectFlowCard(card){
+
+    flowCards.forEach(btn => {
+
+        btn.classList.remove('active');
+
+    });
+
+    card.classList.add('active');
+
+    const minutes = parseInt(card.dataset.time, 10);
+
+    if(!Number.isNaN(minutes)){
+
+        applySessionMode(minutes);
+
+    }
+
+}
+
+flowCards.forEach(card => {
+
+    card.addEventListener('click', () => {
+
+        selectFlowCard(card);
+
+    });
+
+    card.addEventListener('keydown', (event) => {
+
+        if(event.key === 'Enter' || event.key === ' '){
+
+            event.preventDefault();
+
+            selectFlowCard(card);
+
+        }
+
+    });
+
+});
+
+/* =========================
+   INTERNAL NAVIGATION
+========================= */
+
+function setActiveSection(sectionId){
+
+    dashboardSections.forEach(section => {
+
+        section.classList.toggle(
+            'active',
+            section.id === `section-${sectionId}`
+        );
+
+    });
+
+    menuLinks.forEach(link => {
+
+        link.classList.toggle(
+            'active',
+            link.dataset.section === sectionId
+        );
+
+    });
+
+    if(sectionId === 'calendar'){
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    }
+
+    if(sectionId === 'tasks'){
+
+        renderAllTasks();
+
+    }
+
+}
+
+menuLinks.forEach(link => {
+
+    link.addEventListener('click', event => {
+
+        event.preventDefault();
+
+        setActiveSection(link.dataset.section);
+
+    });
+
+});
+
+sectionTriggers.forEach(trigger => {
+
+    trigger.addEventListener('click', () => {
+
+        setActiveSection(trigger.dataset.sectionTrigger);
+
+    });
+
+});
+
+/* =========================
+   REAL TASKS
+========================= */
+
+function formatDate(date){
+
+    const year =
+        date.getFullYear();
+
+    const month =
+        String(date.getMonth() + 1).padStart(2, '0');
+
+    const day =
+        String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+
+}
+
+function normalizeTask(task){
+
+    return {
+        id: task.id,
+        title: task.title || 'Tarea sin título',
+        due_date: task.due_date || formatDate(today),
+        priority: task.priority || 'media',
+        duration_minutes: Number(task.duration_minutes) || 30,
+        completed: Boolean(task.completed),
+    };
+
+}
+
+function getPriorityClass(priority){
+
+    const normalized =
+        String(priority || 'media').toLowerCase();
+
+    if(normalized === 'alta') return 'high';
+
+    if(normalized === 'baja') return 'low';
+
+    return 'medium';
+
+}
+
+function getPriorityIcon(priority){
+
+    const normalized =
+        String(priority || 'media').toLowerCase();
+
+    if(normalized === 'alta') return 'purple';
+
+    if(normalized === 'baja') return 'blue';
+
+    return 'orange';
+
+}
+
+function createTaskElement(task){
+
+    const taskElement =
+        document.createElement('div');
+
+    taskElement.className =
+        `task${task.completed ? ' completed' : ''}`;
+
+    taskElement.dataset.taskId =
+        task.id;
+
+    taskElement.innerHTML = `
+        <div class="task-left">
+            <input type="checkbox" ${task.completed ? 'checked' : ''}>
+            <div class="task-icon ${getPriorityIcon(task.priority)}">
+                <i class="ri-file-list-3-line"></i>
+            </div>
+            <span>${task.title}</span>
+        </div>
+
+        <div class="task-meta">
+            <span class="badge ${getPriorityClass(task.priority)}">
+                ${task.priority}
+            </span>
+            <small>${task.duration_minutes} min</small>
+            <button class="task-menu" title="Más opciones">
+                <i class="ri-more-2-fill"></i>
+            </button>
+        </div>
+    `;
+
+    const checkbox =
+        taskElement.querySelector('input');
+
+    checkbox.addEventListener('change', () => {
+
+        updateTask(task.id, {
+            completed: checkbox.checked,
+        });
+
+    });
+
+    return taskElement;
+
+}
+
+async function fetchTasks(){
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/tasks`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(response.status === 401){
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        if(!response.ok) throw new Error('No se pudieron cargar las tareas');
+
+        const data =
+            await response.json();
+
+        tasks =
+            data.map(normalizeTask);
+
+    }
+
+    catch(error){
+
+        console.warn(error);
+
+        tasks = [];
+
+        showToast(
+            'No se pudieron cargar las tareas. Verifica conexión.',
+            'error'
+        );
+
+    }
+
+    renderTodayTasks();
+    renderAllTasks();
+    renderCalendar(calendarMonth, calendarYear);
+
+}
+
+async function createTask(payload){
+
+    const response =
+        await fetch(`${API_URL}/tasks`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+    if(!response.ok){
+
+        showToast(
+            'No se pudo crear la tarea',
+            'error'
+        );
+
+        throw new Error('No se pudo crear la tarea');
+
+    }
+
+    await fetchTasks();
+
+}
+
+async function updateTask(taskId, payload){
+
+    const currentTask =
+        tasks.find(task => task.id === Number(taskId));
+
+    if(!currentTask) return;
+
+    const response =
+        await fetch(`${API_URL}/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                ...currentTask,
+                ...payload,
+            }),
+        });
+
+    if(response.ok){
+
+        await fetchTasks();
+
+    } else {
+
+        showToast(
+            'Error al actualizar la tarea',
+            'error'
+        );
+
+    }
+
+}
+
+function renderTaskList(container, taskItems){
+
+    if(!container) return;
+
+    container.innerHTML = '';
+
+    taskItems.forEach(task => {
+
+        container.appendChild(
+            createTaskElement(task)
+        );
+
+    });
+
+}
+
+function renderTodayTasks(){
+
+    const todayTasks =
+        tasks.filter(task => task.due_date === formatDate(today));
+
+    renderTaskList(
+        todayTaskList,
+        todayTasks.slice(0, 4)
+    );
+
+    const pendingCount =
+        todayTasks.filter(task => !task.completed).length;
+
+    const todayCounter =
+        document.querySelector('.tasks-title span');
+
+    if(todayCounter){
+
+        todayCounter.textContent =
+            `${pendingCount} pendientes`;
+
+    }
+
+}
+
+function renderAllTasks(){
+
+    renderTaskList(allTaskList, tasks);
+
+    if(taskPageSummary){
+
+        const pending =
+            tasks.filter(task => !task.completed).length;
+
+        taskPageSummary.textContent =
+            `${tasks.length} tareas registradas • ${pending} pendientes`;
+
+    }
+
+}
+
+function getTasksByDate(dateString){
+
+    return tasks.filter(task => task.due_date === dateString);
+
+}
+
+function renderSelectedDayTasks(dateString){
+
+    const date =
+        new Date(`${dateString}T00:00:00`);
+
+    if(selectedDayTitle){
+
+        selectedDayTitle.textContent =
+            date.toLocaleDateString('es-CO', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            });
+
+    }
+
+    renderTaskList(
+        selectedDayTasks,
+        getTasksByDate(dateString)
+    );
+
+}
+
+function renderCalendar(month, year){
+
+    if(!calendarGrid || !calendarTitle) return;
+
+    calendarGrid.innerHTML = '';
+
+    const firstDay =
+        new Date(year, month, 1);
+
+    const firstWeekday =
+        (firstDay.getDay() + 6) % 7;
+
+    const calendarStart =
+        new Date(year, month, 1 - firstWeekday);
+
+    calendarTitle.textContent =
+        firstDay.toLocaleDateString('es-CO', {
+            month: 'long',
+            year: 'numeric',
+        });
+
+    for(let index = 0; index < 42; index++){
+
+        const day =
+            new Date(calendarStart);
+
+        day.setDate(calendarStart.getDate() + index);
+
+        const dateString =
+            formatDate(day);
+
+        const dayTasks =
+            getTasksByDate(dateString);
+
+        const dayButton =
+            document.createElement('button');
+
+        dayButton.type = 'button';
+
+        dayButton.className = 'calendar-day';
+
+        dayButton.classList.toggle(
+            'is-muted',
+            day.getMonth() !== month
+        );
+
+        dayButton.classList.toggle(
+            'is-today',
+            dateString === formatDate(today)
+        );
+
+        dayButton.classList.toggle(
+            'is-selected',
+            dateString === selectedCalendarDate
+        );
+
+        dayButton.innerHTML = `
+            <span class="calendar-day-number">${day.getDate()}</span>
+            <span>
+                ${dayTasks.slice(0, 3).map(() => '<i class="calendar-task-dot"></i>').join('')}
+            </span>
+            ${dayTasks[0] ? `<span class="calendar-task-preview">${dayTasks[0].title}</span>` : ''}
+        `;
+
+        dayButton.addEventListener('click', () => {
+
+            selectedCalendarDate = dateString;
+
+            renderCalendar(calendarMonth, calendarYear);
+
+            renderSelectedDayTasks(dateString);
+
+        });
+
+        calendarGrid.appendChild(dayButton);
+
+    }
+
+    renderSelectedDayTasks(selectedCalendarDate);
+
+}
+
+if(taskForm){
+
+    taskForm.addEventListener('submit', async event => {
+
+        event.preventDefault();
+
+        const title =
+            document.getElementById('taskTitle').value.trim();
+
+        if(!title) return;
+
+        try{
+
+            await createTask({
+                title,
+                due_date: document.getElementById('taskDate').value || formatDate(today),
+                priority: document.getElementById('taskPriority').value,
+                duration_minutes: Number(document.getElementById('taskDuration').value) || 30,
+                completed: false,
+            });
+
+            taskForm.reset();
+
+            document.getElementById('taskDuration').value = 30;
+
+        }
+
+        catch(error){
+
+            showToast(
+                'No se pudo crear la tarea. ¿El backend está activo?',
+                'error'
+            );
+
+        }
+
+    });
+
+}
+
+if(prevMonthBtn){
+
+    prevMonthBtn.addEventListener('click', () => {
+
+        calendarMonth--;
+
+        if(calendarMonth < 0){
+
+            calendarMonth = 11;
+            calendarYear--;
+
+        }
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    });
+
+}
+
+if(nextMonthBtn){
+
+    nextMonthBtn.addEventListener('click', () => {
+
+        calendarMonth++;
+
+        if(calendarMonth > 11){
+
+            calendarMonth = 0;
+            calendarYear++;
+
+        }
+
+        renderCalendar(calendarMonth, calendarYear);
+
+    });
+
+}
+
+/* =========================
+   CHART.JS
+========================= */
+
+const chartCanvas =
+    document.getElementById('studyChart');
+
+if(chartCanvas && window.Chart){
+
+    const ctxChart =
+        chartCanvas.getContext('2d');
+
+    new Chart(ctxChart, {
+
+        type: 'doughnut',
+
+        data: {
+
+            labels: [
+                'Enfoque profundo',
+                'Estudio ligero',
+                'Descansos',
+                'Distracciones'
+            ],
+
+            datasets: [{
+
+                data: [60, 23, 11, 6],
+
+                backgroundColor: [
+                    '#50e486',
+                    '#7894ff',
+                    '#ffad4c',
+                    '#ff6b6b'
+                ],
+
+                borderColor: 'rgba(11,15,42,0.95)',
+
+                borderWidth: 8,
+
+                hoverOffset: 4,
+
+                cutout: '72%',
+
+            }]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            animation: {
+
+                animateRotate: true,
+
+                duration: 900
+
+            },
+
+            plugins: {
+
+                legend: {
+
+                    display: false
+
+                }
+
+            },
+        }
+
+    });
+
+}
+
+/* =========================
+   LOAD USER INTO SIDEBAR
+========================= */
+
+function loadUserInSidebar(){
+
+    const stored = localStorage.getItem('user');
+
+    if(!stored) return;
+
+    try{
+
+        const userData = JSON.parse(stored);
+
+        const nameElement =
+            document.querySelector('.user-info h3');
+
+        const roleElement =
+            document.querySelector('.user-info p');
+
+        if(nameElement){
+
+            nameElement.textContent =
+                userData.email.split('@')[0] || userData.email;
+
+        }
+
+        if(roleElement){
+
+            roleElement.textContent = userData.email;
+
+        }
+
+    }
+
+    catch(e){
+
+        console.warn('No se pudo cargar usuario en sidebar');
+
+    }
+
+}
+
+/* =========================
+   INITIALIZE
+========================= */
+
+updateTimer();
+
+loadStats();
+
+loadStatsFromBackend();
+
+loadUserInSidebar();
+
+fetchTasks();
+</file>
+
+<file path="frontend/index.html">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <meta charset="UTF-8">
+    <title>StudyBuddy</title>
+    <link rel="stylesheet" href="splash.css">
+</head>
+
+<body>
+
+    <canvas id="particles"></canvas>
+    
+<div class="splash-container">
+
+    <img src="assets/imagenes/logo.png" class="logo" alt="Logo">
+
+    <h1 class="title">StudyBuddy</h1>
+    <p class="subtitle"> Sistema inteligente de productividad para estudiantes</p>
+    
+     <!-- IMAGEN CENTRAL -->
+    <img src="assets/imagenes/splash.png" class="mascot">
+
+    <p class="loading-text">
+        Cargando tu espacio de estudio...</p>
+
+    <div class="loader">
+        <div class="progress"></div>
+    </div>
+
+</div>
+
+<script src="splash.js"></script>
+</body>
+</html>
+</file>
+
+<file path="backend/main.py">
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from passlib.context import CryptContext
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
+from datetime import datetime, timezone
+import os
+
+from .database import SessionLocal, engine, Base
+from .models import Task, User, Session as SessionModel
+from .schemas import (
+    TaskCreate, TaskUpdate, TaskResponse,
+    UserCreate, UserLogin, UserResponse,
+    Token, SessionCreate, SessionResponse,
+    StatsResponse,
+)
+from .auth import create_access_token, get_current_user
+
+app = FastAPI()
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+Base.metadata.create_all(bind=engine)
+
+def ensure_missing_columns():
+    inspector = inspect(engine)
+    tables_info = {
+        "tasks": {
+            "due_date": "VARCHAR",
+            "priority": "VARCHAR DEFAULT 'media'",
+            "duration_minutes": "INTEGER DEFAULT 30",
+            "completed": "BOOLEAN DEFAULT FALSE",
+            "user_id": "INTEGER REFERENCES users(id)",
+        },
+        "sessions": {
+            "user_id": "INTEGER REFERENCES users(id)",
+            "duration_minutes": "INTEGER DEFAULT 25",
+            "mode": "VARCHAR DEFAULT 'pomodoro'",
+            "created_at": "VARCHAR",
+        },
+    }
+
+    with engine.begin() as connection:
+        for table_name, columns in tables_info.items():
+            if table_name not in inspector.get_table_names():
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for col_name, definition in columns.items():
+                if col_name not in existing:
+                    connection.execute(
+                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
+                    )
+
+ensure_missing_columns()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def home():
+    return RedirectResponse(url="/frontend/index.html")
+
+
+@app.post("/register")
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Usuario ya existe")
+
+    new_user = User(email=user.email, password=hash_password(user.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "Usuario creado"}
+
+
+@app.post("/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Usuario no existe")
+
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+
+    token = create_access_token({"user_id": db_user.id})
+
+    return Token(
+        access_token=token,
+        user=UserResponse(id=db_user.id, email=db_user.email),
+    )
+
+
+@app.get("/tasks", response_model=list[TaskResponse])
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
+    return tasks
+
+
+@app.post("/tasks", response_model=TaskResponse)
+def create_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_task = Task(
+        title=task.title,
+        due_date=task.due_date,
+        priority=task.priority,
+        duration_minutes=task.duration_minutes,
+        completed=task.completed,
+        user_id=current_user.id,
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    return task
+
+
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    updated_task: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    update_data = updated_task.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+@app.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    db.delete(task)
+    db.commit()
+
+    return {"message": "Tarea eliminada"}
+
+
+@app.post("/sessions", response_model=SessionResponse)
+def create_session(
+    session: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    now = datetime.now(timezone.utc).isoformat()
+
+    new_session = SessionModel(
+        user_id=current_user.id,
+        duration_minutes=session.duration_minutes,
+        mode=session.mode,
+        created_at=now,
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+
+@app.get("/sessions", response_model=list[SessionResponse])
+def get_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .order_by(SessionModel.id.desc())
+        .limit(50)
+        .all()
+    )
+    return sessions
+
+
+@app.get("/stats", response_model=StatsResponse)
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .all()
+    )
+
+    total_sessions = len(sessions)
+    total_minutes = sum(s.duration_minutes for s in sessions)
+
+    streak = calculate_streak(sessions)
+
+    xp = total_sessions * 50
+    level = (xp // 350) + 1
+
+    return StatsResponse(
+        total_sessions=total_sessions,
+        total_minutes=total_minutes,
+        current_streak=streak,
+        xp=xp,
+        level=level,
+    )
+
+
+def calculate_streak(sessions: list) -> int:
+    if not sessions:
+        return 0
+
+    dates = set()
+    for s in sessions:
+        if s.created_at:
+            day = s.created_at[:10]
+            dates.add(day)
+
+    if not dates:
+        return 0
+
+    sorted_dates = sorted(dates, reverse=True)
+    streak = 1
+
+    from datetime import date, timedelta
+
+    today = date.today()
+
+    if sorted_dates[0] < today.isoformat():
+        last = date.fromisoformat(sorted_dates[0])
+        if (today - last).days > 1:
+            return 0
+
+    for i in range(len(sorted_dates) - 1):
+        current = date.fromisoformat(sorted_dates[i])
+        previous = date.fromisoformat(sorted_dates[i + 1])
+        if (current - previous).days == 1:
+            streak += 1
+        else:
+            break
+
+    return streak
+</file>
+
+<file path="frontend/dashboard.css">
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    font-family:'Poppins',sans-serif;
+    background:#0b0f2a;
+    color:white;
+    overflow-x:hidden;
+    position:relative;
+}
+
+/* =========================
+   APP LAYOUT
+========================= */
+
+.app-container{
+    display:flex;
+    min-height:100vh;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.sidebar{
+    width:290px;
+    background:rgba(10,15,35,0.95);
+    border-right:1px solid rgba(255,255,255,0.05);
+    padding:30px 20px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    backdrop-filter:blur(20px);
+    transition:0.35s ease;
+    flex-shrink:0;
+}
+
+/* COLLAPSED */
+
+.sidebar.collapsed{
+    width:100px;
+    padding:30px 15px;
+}
+
+.sidebar.collapsed .logo span,
+.sidebar.collapsed .menu a span,
+.sidebar.collapsed .user-info{
+    opacity:0;
+    visibility:hidden;
+    width:0;
+}
+
+.sidebar.collapsed .logo,
+.sidebar.collapsed .menu a,
+.sidebar.collapsed .user-panel{
+    justify-content:center;
+}
+
+.sidebar.collapsed .logout-btn{
+    display:none;
+}
+
+.sidebar.collapsed .user-panel img{
+    margin:0;
+}
+
+/* TOGGLE */
+
+.sidebar-toggle{
+    width:50px;
+    height:50px;
+    border:none;
+    border-radius:16px;
+    background:#171c45;
+    color:white;
+    font-size:22px;
+    cursor:pointer;
+    margin-bottom:25px;
+    transition:0.3s;
+}
+
+.sidebar-toggle:hover{
+    background:#7c5cff;
+    transform:translateY(-2px);
+    box-shadow:0 0 20px rgba(124,92,255,0.4);
+}
+
+/* LOGO */
+
+.logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:28px;
+    font-weight:700;
+    margin-bottom:40px;
+}
+
+.logo i{
+    color:#8b5cff;
+}
+
+.logo img{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    object-fit:cover;
+    flex-shrink:0;
+    filter:drop-shadow(0 0 16px rgba(124,92,255,0.35));
+}
+
+.logo span{
+    background:linear-gradient(to right,#ffffff,#8b5cff);
+    background-clip:text;
+    -webkit-background-clip:text;
+    color:transparent;
+    -webkit-text-fill-color:transparent;
+}
+
+/* MENU */
+
+.menu{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.menu a{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    text-decoration:none;
+    color:#cfcfff;
+    padding:16px 18px;
+    border-radius:18px;
+    transition:0.3s;
+    font-weight:500;
+}
+
+.menu a:hover{
+    background:rgba(124,92,255,0.15);
+    transform:translateX(5px);
+}
+
+.menu a.active{
+    background:linear-gradient(135deg,#7c5cff,#9d7bff);
+    color:white;
+    box-shadow:0 0 25px rgba(124,92,255,0.45);
+}
+
+/* USER PANEL */
+
+.user-panel{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    background:rgba(16,19,46,0.95);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:18px;
+    border-radius:24px;
+    overflow:hidden;
+    margin-top:30px;
+}
+
+.user-panel img{
+    width:60px;
+    height:60px;
+    border-radius:20px;
+    object-fit:cover;
+    border:2px solid rgba(124,92,255,0.4);
+}
+
+.user-info{
+    flex:1;
+}
+
+.user-info h3{
+    font-size:16px;
+    margin-bottom:4px;
+}
+
+.user-info p{
+    color:#a6abd3;
+    font-size:14px;
+}
+
+.logout-btn{
+    width:45px;
+    height:45px;
+    border:none;
+    border-radius:16px;
+    background:rgba(255,255,255,0.05);
+    color:white;
+    font-size:18px;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.logout-btn:hover{
+    background:#7c5cff;
+    transform:translateY(-2px);
+}
+
+.user-glow{
+    position:absolute;
+    width:120px;
+    height:120px;
+    background:#7c5cff;
+    filter:blur(80px);
+    opacity:0.18;
+    right:-30px;
+    bottom:-30px;
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+
+.main-content{
+    flex:1;
+    padding:35px;
+    min-width:0;
+}
+
+/* TOPBAR */
+
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:30px;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.welcome h1{
+    font-size:42px;
+}
+
+.welcome p{
+    color:#9ba1c7;
+    margin-top:8px;
+}
+
+.topbar-actions{
+    display:flex;
+    align-items:center;
+    gap:20px;
+}
+
+/* =========================
+   INTERNAL SECTIONS
+========================= */
+
+.dashboard-section{
+    display:none;
+}
+
+.dashboard-section.active{
+    display:block;
+}
+
+.section-grid{
+    display:grid;
+    grid-template-columns:minmax(320px,0.8fr) minmax(0,1.2fr);
+    gap:25px;
+    align-items:start;
+}
+
+.placeholder-section-card{
+    min-height:320px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.placeholder-section-card p,
+.task-create-card p,
+.task-page-card p,
+.calendar-header p{
+    color:#a7add7;
+    margin-top:8px;
+    line-height:1.7;
+}
+
+/* =========================
+   DASHBOARD GRID
+========================= */
+
+.dashboard-grid{
+    display:grid;
+    grid-template-columns:repeat(6, 1fr);
+    gap:25px;
+    align-items:start;
+    grid-auto-rows:min-content;
+}
+
+.dashboard-grid > *{
+    height:auto;
+    align-self:start;
+}
+
+/* DISTRIBUCIÓN DE CARDS */
+.focus-card{
+    grid-column:1 / span 4;
+    grid-row:1;
+    height:fit-content;
+}
+
+.pet-card{
+    grid-column:5 / span 2;
+    grid-row:1;
+}
+
+.tasks-card{
+    grid-column:1 / span 3;
+    grid-row:2;
+}
+
+.productivity-card{
+    grid-column:4 / span 3;
+    grid-row:2;
+}
+/* =========================
+   CARDS
+========================= */
+.card{
+    background:rgba(16,19,46,0.92);
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:28px;
+    padding:28px;
+    backdrop-filter:blur(20px);
+    box-shadow:0 10px 40px rgba(0,0,0,0.35);
+    transition:0.35s ease;
+}
+
+.focus-card,
+.pet-card,
+.tasks-card,
+.productivity-card{
+    align-self:start;
+}
+
+.card.focus-card{
+    background:transparent;
+    backdrop-filter:none;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 20px 50px rgba(0,0,0,0.45);
+}
+
+.card-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+}
+
+/* =========================
+   PREMIUM FOCUS CARD
+========================= */
+
+.focus-card{
+    --timer-size:280px;
+    --circle-size:calc(var(--timer-size) * 0.80);
+
+    /* Transparencia del fondo: 0 = se ve mucho la foto, 1 = casi no se ve */
+    --focus-image-opacity:1;
+    --focus-overlay-top:0.25;
+    --focus-overlay-bottom:0.35;
+
+    position:relative;
+    overflow:hidden;
+    isolation:isolate;
+    background:transparent;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+
+    height:auto;
+    padding-bottom:30px;
+}
+
+/* BACKGROUND */
+.focus-bg{
+    position:absolute;
+    inset:0;
+    background-image:url("./assets/imagenes/fondo_dashboard_morado.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    opacity:var(--focus-image-opacity);
+    z-index:0;
+    pointer-events:none;
+}
+
+.focus-overlay{
+    position:absolute;
+    inset:0;
+    z-index:1;
+    background:
+        linear-gradient(
+            to top,
+            rgba(5,8,20,var(--focus-overlay-top)),
+            rgba(10,12,35,var(--focus-overlay-bottom))
+        );
+}
+
+.focus-glow{
+    position:absolute;
+    width:500px;
+    height:500px;
+    background:#7c5cff;
+    filter:blur(140px);
+    opacity:.18;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    z-index:1;
+}
+.focus-content{
+    position:relative;
+    z-index:2;
+
+    display:flex;
+    flex-direction:column;
+
+    gap:16px;
+}
+
+.focus-card > .focus-stars{
+    position:relative;
+    z-index:1;
+}
+
+.focus-subtitle{
+    color:#a7add7;
+    margin-top:8px;
+}
+
+.focus-actions{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+/* STATUS */
+
+.status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:#1a1f4d;
+    padding:10px 14px;
+    border-radius:12px;
+    white-space:nowrap;
+}
+
+.status span{
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:#4cff88;
+}
+
+/* MUSIC BUTTON */
+
+.music-btn{
+    width:54px;
+    height:54px;
+    border:none;
+    border-radius:18px;
+    background:rgba(255,255,255,.05);
+    color:#b892ff;
+    font-size:22px;
+    cursor:pointer;
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.05);
+    transition:0.3s;
+}
+
+.music-btn:hover{
+    transform:translateY(-3px);
+    background:#7c5cff;
+    color:white;
+    box-shadow:0 0 25px rgba(124,92,255,.45);
+}
+
+/* =========================
+   TIMER
+========================= */
+
+.focus-circle{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    margin:0;
+    gap:16px;
+}
+
+.timer-ring{
+    position:relative;
+    width:var(--timer-size);
+    height:var(--timer-size);
+    flex-shrink:0;
+    overflow:visible;
+    background:transparent;
+    border:none;
+}
+
+.progress-ring{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    overflow:visible;
+    transform:rotate(-90deg);
+    pointer-events:none;
+}
+
+.progress-bg{
+    fill:transparent;
+    stroke:rgba(255,255,255,.06);
+    stroke-width:12;
+}
+
+.progress-ring-circle{
+    fill:transparent;
+    stroke:url(#gradientStroke);
+    stroke-width:12;
+    stroke-linecap:round;
+    transition:stroke-dashoffset 1s linear;
+    filter:drop-shadow(0 0 14px rgba(124,92,255,.8));
+}
+
+.circle{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:var(--circle-size);
+    height:var(--circle-size);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    padding:14px;
+    border-radius:50%;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(124,92,255,.12),
+            rgba(15,18,45,.98)
+        );
+    border:1px solid rgba(255,255,255,0.06);
+    box-shadow:
+        0 0 40px rgba(124,92,255,.18),
+        inset 0 0 40px rgba(255,255,255,.03);
+    z-index:1;
+}
+
+.circle.running{
+    animation:pulseTimer 2s infinite;
+}
+
+@keyframes pulseTimer{
+    0%{
+        transform:translate(-50%,-50%) scale(1);
+    }
+
+    50%{
+        transform:translate(-50%,-50%) scale(1.03);
+    }
+
+    100%{
+        transform:translate(-50%,-50%) scale(1);
+    }
+}
+
+.focus-mode-label{
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin-bottom:10px;
+}
+
+.circle h1{
+    font-size:clamp(32px,8vw,44px);
+    font-weight:700;
+    letter-spacing:-3px;
+    margin:0;
+    line-height:1;
+}
+
+.circle p{
+    color:#9fa5d1;
+    margin:8px 0 12px 0;
+    font-size:12px;
+}
+
+/* BUTTONS */
+
+button{
+    transition:0.3s ease;
+}
+
+button:hover{
+    transform:translateY(-2px);
+}
+
+.primary-btn{
+    border:none;
+    background:linear-gradient(135deg,#7c5cff,#9d7bff);
+    color:white;
+    padding:10px 14px;
+    border-radius:12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 0 20px rgba(124,92,255,.35);
+    min-width:120px;
+    text-align:center;
+    margin:0;
+}
+
+.circle .primary-btn,
+#startBtn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:12px 24px;
+    font-size:16px;
+    white-space:nowrap;
+    min-width:max-content;
+    border-radius:14px;
+}
+
+.timer-buttons{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+}
+
+.secondary-btn{
+    width:38px;
+    height:38px;
+    border:none;
+    border-radius:12px;
+    background:rgba(23,28,69,0.8);
+    color:#b892ff;
+    font-size:16px;
+    cursor:pointer;
+    transition:0.3s;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    border:1px solid rgba(124,92,255,0.2);
+}
+
+.timer-buttons .secondary-btn{
+    width:48px;
+    height:48px;
+    font-size:20px;
+    border-radius:14px;
+}
+
+.secondary-btn:hover{
+    background:#7c5cff;
+    box-shadow:0 0 20px rgba(124,92,255,0.4);
+}
+
+/* SESSION FLOW */
+
+.session-flow{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    margin-top:10px;
+    flex-wrap:wrap;
+}
+
+.flow-card{
+    min-width:140px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:18px 22px;
+    border-radius:22px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.05);
+    backdrop-filter:blur(10px);
+    color:#d7daf7;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.flow-card:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,.08);
+}
+
+.flow-card:focus-visible{
+    outline:2px solid #7c5cff;
+    outline-offset:2px;
+}
+
+.flow-card.active{
+    background:
+        linear-gradient(
+            135deg,
+            rgba(124,92,255,.18),
+            rgba(124,92,255,.08)
+        );
+    border:1px solid rgba(124,92,255,.35);
+    box-shadow:0 0 25px rgba(124,92,255,.2);
+}
+
+.flow-card small{
+    color:#9ca3cf;
+}
+
+.flow-arrow{
+    color:#7c5cff;
+    font-size:28px;
+}
+
+/* =========================
+   MINI STREAK
+========================= */
+
+.mini-streak{
+    display:flex;
+    align-items:center;
+    gap:22px;
+    background:rgba(16,19,46,0.9);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:14px 18px;
+    border-radius:22px;
+    backdrop-filter:blur(20px);
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.mini-streak-summary{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding-right:20px;
+    border-right:1px solid rgba(255,255,255,0.07);
+}
+
+.mini-fire{
+    font-size:34px;
+    filter:drop-shadow(0 0 16px rgba(255,117,76,0.4));
+}
+
+.mini-streak-summary span,
+.mini-streak-summary small{
+    display:block;
+    color:#aeb3d8;
+    font-size:12px;
+}
+
+.mini-streak-summary strong{
+    display:block;
+    color:#ff8a4c;
+    font-size:24px;
+    line-height:1.1;
+    margin:3px 0;
+}
+
+.mini-days{
+    display:flex;
+    gap:14px;
+}
+
+.mini-day{
+    width:38px;
+    min-height:52px;
+    border-radius:14px;
+    background:transparent;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    font-weight:600;
+    color:#9da3cf;
+}
+
+.mini-day span{
+    color:#cfd2ec;
+    font-size:12px;
+}
+
+.mini-day i{
+    width:26px;
+    height:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    font-size:17px;
+    border:2px solid rgba(255,255,255,0.12);
+}
+
+.mini-day.active{
+    color:#5cff9b;
+}
+
+.mini-day.active i{
+    border-color:#21d981;
+    color:#21d981;
+    box-shadow:0 0 16px rgba(33,217,129,0.25);
+}
+
+.mini-day.current{
+    color:white;
+}
+
+.mini-day.current i{
+    border-color:#21d981;
+    color:#21d981;
+    background:rgba(33,217,129,0.08);
+}
+
+.mini-day.pending i{
+    border-color:#ff8a4c;
+    box-shadow:0 0 14px rgba(255,138,76,0.18);
+}
+
+/* =========================
+   TASKS
+========================= */
+
+.task-list{
+    margin-top:25px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.task-list:empty::before{
+    content:"No hay tareas para mostrar.";
+    display:block;
+    padding:18px;
+    border:1px dashed rgba(124,92,255,0.28);
+    border-radius:14px;
+    color:#9ea4cf;
+    text-align:center;
+    background:rgba(255,255,255,0.03);
+}
+
+.tasks-title{
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.tasks-title span{
+    padding:6px 12px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.05);
+    color:#b9bee0;
+    font-size:13px;
+    font-weight:500;
+}
+
+.task{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(13,18,45,0.68);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:12px;
+    border-radius:14px;
+    gap:12px;
+    transition:0.25s ease;
+}
+
+.task:hover{
+    background:rgba(18,24,58,0.88);
+    border-color:rgba(124,92,255,0.22);
+}
+
+.task-left{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    min-width:0;
+}
+
+.task-left input{
+    width:20px;
+    height:20px;
+    accent-color:#7c5cff;
+    flex-shrink:0;
+}
+
+.task-left > span{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.task-icon{
+    width:28px;
+    height:28px;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    flex-shrink:0;
+}
+
+.task-icon.purple{
+    background:linear-gradient(135deg,#7c5cff,#9d7bff);
+}
+
+.task-icon.orange{
+    background:linear-gradient(135deg,#ffb84d,#ff8a4c);
+}
+
+.task-icon.blue{
+    background:linear-gradient(135deg,#5d7cff,#6fa8ff);
+}
+
+.task-meta{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-shrink:0;
+}
+
+.task-meta small{
+    color:#aeb3d8;
+    min-width:48px;
+    text-align:right;
+}
+
+.task-menu{
+    width:28px;
+    height:28px;
+    border:none;
+    border-radius:8px;
+    background:transparent;
+    color:#9fa5d1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.task.completed .task-left > span{
+    color:#8288b5;
+    text-decoration:line-through;
+}
+
+.task-form{
+    margin-top:24px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+}
+
+.task-form label{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    color:#d8daf0;
+    font-size:14px;
+    font-weight:500;
+}
+
+.task-form input,
+.task-form select{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    background:rgba(10,15,35,0.72);
+    color:white;
+    padding:13px 14px;
+    font:inherit;
+    outline:none;
+}
+
+.task-form input:focus,
+.task-form select:focus{
+    border-color:rgba(124,92,255,0.55);
+    box-shadow:0 0 0 4px rgba(124,92,255,0.12);
+}
+
+.form-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+
+.task-submit{
+    width:fit-content;
+}
+
+.badge{
+    padding:5px 12px;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:600;
+}
+
+.high{
+    background:rgba(255,95,95,0.2);
+    color:#ff6b6b;
+}
+
+.medium{
+    background:rgba(255,184,77,0.2);
+    color:#ffb84d;
+}
+
+.low{
+    background:rgba(92,255,155,0.2);
+    color:#5cff9b;
+}
+
+.small-btn{
+    border:none;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:transparent;
+    color:white;
+    padding:10px 16px;
+    border-radius:12px;
+    cursor:pointer;
+    color:#9d7bff;
+    font-weight:600;
+}
+
+/* =========================
+   PET CARD
+========================= */
+
+.pet-card{
+    position:relative;
+    overflow:hidden;
+    min-width:0;
+}
+
+.pet-card::before{
+    content:"";
+    position:absolute;
+    width:260px;
+    height:260px;
+    right:-70px;
+    top:-80px;
+    background:#7c5cff;
+    filter:blur(130px);
+    opacity:0.15;
+    pointer-events:none;
+}
+
+.pet-header{
+    position:relative;
+    z-index:1;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+}
+
+.pet-header h2 span{
+    color:#b47cff;
+}
+
+.pet-header p{
+    color:#a9aed4;
+}
+
+.xp{
+    color:#d6d8f3;
+    font-size:14px;
+}
+
+.xp-bar{
+    position:relative;
+    z-index:1;
+    width:100%;
+    height:10px;
+    background:#1b204b;
+    border-radius:999px;
+    margin:16px 0 28px;
+    overflow:hidden;
+}
+
+.xp-fill{
+    width:70%;
+    height:100%;
+    background:linear-gradient(90deg,#7c5cff,#b28cff);
+    border-radius:999px;
+    box-shadow:0 0 20px rgba(124,92,255,0.5);
+    transition:width .6s ease;
+}
+
+.pet-content{
+    position:relative;
+    z-index:1;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(135px,0.82fr);
+    align-items:center;
+    gap:18px;
+    min-width:0;
+}
+
+.pet-message{
+    position:relative;
+    background:linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03));
+    border:1px solid rgba(255,255,255,0.06);
+    padding:22px;
+    border-radius:22px;
+    max-width:none;
+    min-width:0;
+    box-shadow:0 18px 40px rgba(0,0,0,0.18);
+}
+
+.pet-message::after{
+    content:"";
+    position:absolute;
+    top:38px;
+    right:-12px;
+    width:24px;
+    height:24px;
+    background:rgba(255,255,255,0.055);
+    transform:rotate(45deg);
+    border-top:1px solid rgba(255,255,255,0.06);
+    border-right:1px solid rgba(255,255,255,0.06);
+}
+
+.pet-message p{
+    margin-top:10px;
+    line-height:1.7;
+    color:#b8bcde;
+}
+
+.pet-mascot-slot{
+    position:relative;
+    width:100%;
+    min-width:0;
+    min-height:clamp(170px,16vw,220px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    overflow:visible;
+}
+
+.pet-mascot-slot::before{
+    content:"";
+    position:absolute;
+    width:min(96%,190px);
+    aspect-ratio:1;
+    height:auto;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(124,92,255,0.22),rgba(124,92,255,0));
+    filter:blur(8px);
+}
+
+.pet-mascot-placeholder{
+    position:relative;
+    z-index:1;
+    width:min(100%,190px);
+    aspect-ratio:1;
+    height:auto;
+    min-width:128px;
+    border-radius:32px;
+    border:1px dashed rgba(180,124,255,0.5);
+    background:
+        linear-gradient(135deg,rgba(124,92,255,0.12),rgba(255,255,255,0.03));
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    color:#9fa5d1;
+    font-size:13px;
+    text-align:center;
+    padding:16px;
+    line-height:1.4;
+}
+
+.pet-mascot-placeholder i{
+    font-size:42px;
+    color:#7c5cff;
+    opacity:0.85;
+    filter:drop-shadow(0 0 16px rgba(124,92,255,0.35));
+}
+
+.pet-mascot-placeholder small{
+    color:#787fa9;
+    font-size:11px;
+}
+
+.pet-content img.pet-mascot-img{
+    width:min(100%,220px);
+    max-height:220px;
+    object-fit:contain;
+    animation:floatPet 4s ease-in-out infinite;
+}
+
+.pet-content img.pet-mascot-img.is-hidden{
+    display:none;
+}
+
+@keyframes floatPet{
+    0%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-10px);
+    }
+
+    100%{
+        transform:translateY(0px);
+    }
+}
+
+.mood-card{
+    position:relative;
+    z-index:1;
+    margin-top:20px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    background:rgba(255,255,255,0.04);
+    padding:18px;
+    border-radius:18px;
+}
+
+.mood-icon{
+    width:46px;
+    height:46px;
+    border-radius:15px;
+    background:rgba(92,255,155,0.15);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:24px;
+    color:#39d98a;
+}
+
+.mood-card p{
+    color:#aeb3d8;
+    font-size:13px;
+    margin-top:3px;
+}
+
+/* =========================
+   PRODUCTIVITY CARD
+========================= */
+
+.productivity-card{
+    position:relative;
+    overflow:hidden;
+    margin-top: 0;
+}
+
+.productivity-card::before{
+    content:"";
+    position:absolute;
+    width:200px;
+    height:200px;
+    background:#7c5cff;
+    filter:blur(120px);
+    opacity:0.12;
+    top:-80px;
+    right:-80px;
+}
+
+.productivity-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:24px;
+    position:relative;
+    z-index:1;
+}
+
+.productivity-header p{
+    color:#9ea4cf;
+    margin-top:5px;
+}
+
+.period-btn{
+    border:none;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#d6d8f3;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.05);
+    padding:10px 14px;
+    border-radius:12px;
+    cursor:pointer;
+}
+
+.productivity-overview{
+    position:relative;
+    z-index:1;
+    display:grid;
+    grid-template-columns:190px 1fr;
+    align-items:center;
+    gap:28px;
+}
+
+.productivity-donut{
+    position:relative;
+    width:180px;
+    height:180px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.productivity-donut canvas{
+    width:180px !important;
+    height:180px !important;
+}
+
+.productivity-score{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    pointer-events:none;
+}
+
+.productivity-score strong{
+    font-size:34px;
+    line-height:1;
+}
+
+.productivity-score span{
+    color:#aeb3d8;
+    font-size:13px;
+    margin-top:8px;
+}
+
+/* PROGRESS */
+
+.productivity-progress{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.progress-item{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.progress-info{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    color:#d8daf0;
+    font-size:14px;
+}
+
+.progress-info span{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.legend-dot{
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    display:inline-flex;
+    flex-shrink:0;
+}
+
+.legend-dot.green{
+    background:#50e486;
+}
+
+.legend-dot.blue{
+    background:#7894ff;
+}
+
+.legend-dot.orange{
+    background:#ffad4c;
+}
+
+.legend-dot.red{
+    background:#ff6b6b;
+}
+
+.progress-bar{
+    width:100%;
+    height:8px;
+    background:#1a1f4d;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    border-radius:999px;
+}
+
+.progress-fill.purple{
+    width:92%;
+    background:linear-gradient(90deg,#7c5cff,#b28cff);
+}
+
+.progress-fill.green{
+    width:76%;
+    background:linear-gradient(90deg,#43e97b,#38f9d7);
+}
+
+.progress-fill.blue{
+    width:62%;
+    background:linear-gradient(90deg,#7894ff,#8fb7ff);
+}
+
+.progress-fill.orange{
+    width:68%;
+    background:linear-gradient(90deg,#ff9966,#ff5e62);
+}
+
+.progress-fill.red{
+    width:36%;
+    background:linear-gradient(90deg,#ff6b6b,#ff8a7a);
+}
+
+.productivity-insight{
+    position:relative;
+    z-index:1;
+    margin-top:24px;
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    gap:16px;
+    padding:18px;
+    border-radius:18px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.06);
+}
+
+.insight-icon{
+    width:42px;
+    height:42px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(157,123,255,0.16);
+    color:#b47cff;
+    font-size:24px;
+    flex-shrink:0;
+}
+
+.productivity-insight h4{
+    color:#d18cff;
+    font-size:14px;
+    margin-bottom:6px;
+}
+
+.productivity-insight p{
+    color:#aeb3d8;
+    font-size:13px;
+    line-height:1.6;
+}
+
+/* =========================
+   CALENDAR
+========================= */
+
+.calendar-card{
+    position:relative;
+}
+
+.calendar-header{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    align-items:center;
+    margin-bottom:26px;
+}
+
+.calendar-controls{
+    display:flex;
+    gap:10px;
+}
+
+.calendar-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 320px;
+    gap:24px;
+    align-items:start;
+}
+
+.calendar-board{
+    min-width:0;
+}
+
+.calendar-weekdays,
+.calendar-grid{
+    display:grid;
+    grid-template-columns:repeat(7, minmax(0,1fr));
+    gap:10px;
+}
+
+.calendar-weekdays{
+    margin-bottom:10px;
+}
+
+.calendar-weekdays span{
+    color:#9ea4cf;
+    font-size:13px;
+    text-align:center;
+    font-weight:600;
+}
+
+.calendar-day{
+    min-height:112px;
+    border:none;
+    border-radius:18px;
+    background:rgba(13,18,45,0.68);
+    border:1px solid rgba(255,255,255,0.06);
+    color:white;
+    padding:12px;
+    text-align:left;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.calendar-day:hover{
+    background:rgba(18,24,58,0.9);
+    border-color:rgba(124,92,255,0.28);
+}
+
+.calendar-day.is-muted{
+    opacity:.38;
+}
+
+.calendar-day.is-today{
+    box-shadow:inset 0 0 0 1px rgba(92,255,155,0.38);
+}
+
+.calendar-day.is-selected{
+    border-color:rgba(124,92,255,0.72);
+    box-shadow:0 0 24px rgba(124,92,255,0.22);
+}
+
+.calendar-day-number{
+    font-weight:700;
+}
+
+.calendar-task-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    display:inline-flex;
+    background:#7c5cff;
+    box-shadow:0 0 12px rgba(124,92,255,0.5);
+}
+
+.calendar-task-preview{
+    color:#cfd2ec;
+    font-size:12px;
+    line-height:1.4;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.calendar-day-panel{
+    background:rgba(255,255,255,0.035);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:22px;
+    padding:20px;
+}
+
+.calendar-day-panel h3{
+    margin-bottom:18px;
+}
+
+.task-list.compact{
+    margin-top:0;
+}
+
+.task-list.compact .task{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.insight-bars{
+    display:flex;
+    align-items:flex-end;
+    gap:6px;
+    height:82px;
+    padding:0 2px 2px;
+    align-self:end;
+}
+
+.insight-bars span{
+    width:9px;
+    height:var(--bar-height);
+    border-radius:999px 999px 4px 4px;
+    background:linear-gradient(180deg,#d18cff 0%,#7c5cff 58%,rgba(124,92,255,0.28) 100%);
+    box-shadow:0 0 18px rgba(157,123,255,0.45);
+    transform-origin:bottom;
+    animation:insightBarPulse 2.4s ease-in-out infinite;
+    animation-delay:var(--delay);
+}
+
+@keyframes insightBarPulse{
+    0%,
+    100%{
+        transform:scaleY(.72);
+        opacity:.72;
+    }
+
+    50%{
+        transform:scaleY(1);
+        opacity:1;
+    }
+}
+
+/* MINI STATS */
+
+.mini-stats{
+    margin-top:35px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:15px;
+}
+
+.mini-stat{
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:20px;
+    text-align:center;
+}
+
+.mini-stat h3{
+    font-size:26px;
+    margin-bottom:8px;
+}
+
+.mini-stat p{
+    color:#9ea4cf;
+    font-size:13px;
+}
+
+/* =========================
+   BACKGROUND BLOBS
+========================= */
+
+.background-blobs{
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+    z-index:-2;
+    pointer-events:none;
+}
+
+.blob{
+    position:absolute;
+    border-radius:50%;
+    filter:blur(120px);
+    opacity:0.18;
+    animation:floatBlob 18s infinite ease-in-out;
+}
+
+.blob1{
+    width:420px;
+    height:420px;
+    background:#7c5cff;
+    top:-120px;
+    left:-120px;
+}
+
+.blob2{
+    width:350px;
+    height:350px;
+    background:#4d8dff;
+    bottom:-100px;
+    right:-80px;
+    animation-delay:4s;
+}
+
+.blob3{
+    width:300px;
+    height:300px;
+    background:#a855f7;
+    top:40%;
+    left:45%;
+    animation-delay:2s;
+}
+
+@keyframes floatBlob{
+    0%{
+        transform:translate(0px,0px) scale(1);
+    }
+
+    25%{
+        transform:translate(40px,-30px) scale(1.05);
+    }
+
+    50%{
+        transform:translate(-20px,40px) scale(0.95);
+    }
+
+    75%{
+        transform:translate(30px,20px) scale(1.03);
+    }
+
+    100%{
+        transform:translate(0px,0px) scale(1);
+    }
+}
+
+/* PARTICLES */
+
+#particles{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:-1;
+    pointer-events:none;
+}
+
+/* STARS */
+
+.focus-stars span{
+    position:absolute;
+    width:4px;
+    height:4px;
+    border-radius:50%;
+    background:#caa8ff;
+    box-shadow:0 0 10px #caa8ff;
+    animation:twinkle 4s infinite ease-in-out;
+}
+
+.focus-stars span:nth-child(1){
+    top:20%;
+    left:15%;
+}
+
+.focus-stars span:nth-child(2){
+    top:30%;
+    right:18%;
+    animation-delay:1s;
+}
+
+.focus-stars span:nth-child(3){
+    top:60%;
+    left:20%;
+    animation-delay:2s;
+}
+
+.focus-stars span:nth-child(4){
+    top:75%;
+    right:22%;
+    animation-delay:3s;
+}
+
+.focus-stars span:nth-child(5){
+    top:45%;
+    left:50%;
+    animation-delay:1.5s;
+}
+
+@keyframes twinkle{
+    0%{
+        opacity:.2;
+        transform:scale(.8);
+    }
+
+    50%{
+        opacity:1;
+        transform:scale(1.8);
+    }
+
+    100%{
+        opacity:.2;
+        transform:scale(.8);
+    }
+}
+
+/* =========================
+   SCROLLBAR
+========================= */
+
+::-webkit-scrollbar{
+    width:10px;
+}
+
+::-webkit-scrollbar-track{
+    background:#0f1333;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#7c5cff;
+    border-radius:999px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1200px){
+
+    .dashboard-grid{
+        grid-template-columns:1fr;
+    }
+
+    .section-grid,
+    .calendar-layout{
+        grid-template-columns:1fr;
+    }
+
+    .focus-card,
+    .pet-card,
+    .tasks-card,
+    .productivity-card{
+        grid-column:auto;
+        grid-row:auto;
+    }
+
+    .pet-content{
+        justify-content:center;
+    }
+
+}
+
+@media(max-width:900px){
+
+    .sidebar{
+        display:none;
+    }
+
+    .main-content{
+        padding:20px;
+    }
+
+    .welcome h1{
+        font-size:32px;
+    }
+
+    .focus-card{
+        --timer-size:240px;
+    }
+
+    .pet-content{
+        grid-template-columns:1fr;
+        text-align:center;
+        justify-items:center;
+    }
+
+    .pet-message::after{
+        top:auto;
+        right:50%;
+        bottom:-12px;
+        transform:translateX(50%) rotate(45deg);
+    }
+
+    .productivity-overview{
+        grid-template-columns:1fr;
+        justify-items:center;
+    }
+
+    .productivity-progress{
+        width:100%;
+    }
+
+    .productivity-insight{
+        grid-template-columns:auto minmax(0,1fr);
+    }
+
+    .insight-bars{
+        grid-column:1 / -1;
+        justify-self:end;
+        height:64px;
+    }
+
+    .mini-stats{
+        grid-template-columns:1fr;
+    }
+
+}
+
+@media(max-width:600px){
+
+    .topbar{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .mini-streak{
+        width:100%;
+        overflow-x:auto;
+    }
+
+    .mini-streak-summary{
+        min-width:145px;
+    }
+
+    .card-header,
+    .productivity-header,
+    .pet-header,
+    .calendar-header{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .form-row{
+        grid-template-columns:1fr;
+    }
+
+    .calendar-weekdays,
+    .calendar-grid{
+        gap:6px;
+    }
+
+    .calendar-day{
+        min-height:82px;
+        padding:9px;
+        border-radius:14px;
+    }
+
+    .calendar-task-preview{
+        display:none;
+    }
+
+    .tasks-title{
+        flex-wrap:wrap;
+    }
+
+    .task{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .task-left{
+        width:100%;
+    }
+
+    .task-meta{
+        width:100%;
+        justify-content:space-between;
+    }
+
+    .session-flow{
+        flex-direction:column;
+    }
+
+    .flow-arrow{
+        transform:rotate(90deg);
+    }
+
+    .card{
+        padding:22px;
+    }
+
+}
+
+canvas{
+    max-width:100%;
+}
+
+img{
+    max-width:100%;
+    display:block;
+}
+
+/* =========================
+   TOAST
+========================= */
+
+.toast-container{
+    position:fixed;
+    bottom:30px;
+    right:30px;
+    z-index:9999;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    pointer-events:none;
+}
+
+.toast{
+    pointer-events:auto;
+    padding:16px 24px;
+    border-radius:16px;
+    background:rgba(16,19,46,0.96);
+    border:1px solid rgba(255,255,255,0.08);
+    backdrop-filter:blur(20px);
+    box-shadow:0 10px 40px rgba(0,0,0,0.5);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-size:14px;
+    color:white;
+    animation:toastIn 0.35s ease, toastOut 0.35s ease 3.65s forwards;
+    max-width:380px;
+}
+
+.toast i{
+    font-size:20px;
+    flex-shrink:0;
+}
+
+.toast.success i{color:#4cff88;}
+.toast.info i{color:#7c5cff;}
+.toast.warning i{color:#ffad4c;}
+.toast.error i{color:#ff6b6b;}
+
+@keyframes toastIn{
+    from{
+        opacity:0;
+        transform:translateX(40px) scale(0.92);
+    }
+    to{
+        opacity:1;
+        transform:translateX(0) scale(1);
+    }
+}
+
+@keyframes toastOut{
+    from{
+        opacity:1;
+        transform:translateX(0) scale(1);
+    }
+    to{
+        opacity:0;
+        transform:translateX(40px) scale(0.92);
+    }
+}
+</file>
+
+<file path="frontend/dashboard.html">
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StudyBuddy Dashboard</title>
+
+    <!-- Poppins -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Remix Icons -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="dashboard.css">
+
+</head>
+
+<body>
+
+    <!-- BACKGROUND -->
+    <div class="background-blobs">
+
+        <div class="blob blob1"></div>
+        <div class="blob blob2"></div>
+        <div class="blob blob3"></div>
+
+    </div>
+
+    <!-- PARTICLES -->
+    <canvas id="particles"></canvas>
+
+    <!-- APP -->
+    <div class="app-container">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <div>
+
+                <!-- TOGGLE -->
+                <button class="sidebar-toggle" id="sidebarToggle">
+
+                    <i class="ri-menu-4-line"></i>
+
+                </button>
+
+                <!-- LOGO -->
+                <div class="logo">
+
+                    <img src="assets/imagenes/logo.png" alt="StudyBuddy">
+                    <span>StudyBuddy</span>
+
+                </div>
+
+                <!-- MENU -->
+                <nav class="menu">
+
+                    <a href="#" class="active" data-section="home">
+
+                        <i class="ri-home-5-fill"></i>
+                        <span>Inicio</span>
+
+                    </a>
+
+                    <a href="#" data-section="tasks">
+
+                        <i class="ri-task-line"></i>
+                        <span>Tareas</span>
+
+                    </a>
+
+                    <a href="#" data-section="sessions">
+
+                        <i class="ri-timer-flash-line"></i>
+                        <span>Sesiones</span>
+
+                    </a>
+
+                    <a href="#" data-section="analytics">
+
+                        <i class="ri-bar-chart-box-line"></i>
+                        <span>Análisis</span>
+
+                    </a>
+
+                    <a href="#" data-section="calendar">
+
+                        <i class="ri-calendar-line"></i>
+                        <span>Calendario</span>
+
+                    </a>
+
+                    <a href="#" data-section="achievements">
+
+                        <i class="ri-medal-line"></i>
+                        <span>Logros</span>
+
+                    </a>
+
+                    <a href="#" data-section="settings">
+
+                        <i class="ri-settings-3-line"></i>
+                        <span>Ajustes</span>
+
+                    </a>
+
+                </nav>
+
+            </div>
+
+            <!-- USER PANEL -->
+            <div class="user-panel">
+
+                <div class="user-glow"></div>
+
+                <img src="https://i.pravatar.cc/120" alt="profile">
+
+                <div class="user-info">
+
+                    <h3>Carlos David</h3>
+                    <p>Estudiante</p>
+
+                </div>
+
+                <button class="logout-btn">
+
+                    <i class="ri-logout-box-r-line"></i>
+
+                </button>
+
+            </div>
+
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main-content">
+
+            <!-- TOPBAR -->
+            <header class="topbar">
+
+                <div class="welcome">
+
+                    <h1>Hola, Carlos 👋</h1>
+                    <p>Construyamos una sesión increíble hoy.</p>
+
+                </div>
+
+                <div class="topbar-actions">
+
+                    <div class="mini-streak">
+
+                        <div class="mini-streak-summary">
+
+                            <div class="mini-fire">
+                                🔥
+                            </div>
+
+                            <div>
+
+                                <span>Racha actual</span>
+                                <strong>12 días</strong>
+                                <small>¡Vas genial! 🔥</small>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mini-days">
+
+                            <div class="mini-day active">
+                                <span>Lun</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Mar</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Mié</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Jue</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day active">
+                                <span>Vie</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day current">
+                                <span>Sáb</span>
+                                <i class="ri-check-line"></i>
+                            </div>
+
+                            <div class="mini-day pending">
+                                <span>Dom</span>
+                                <i></i>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </header>
+
+            <!-- DASHBOARD GRID -->
+            <section class="dashboard-section active" id="section-home">
+
+            <section class="dashboard-grid">
+
+                <!-- =========================
+                FOCUS CARD PREMIUM
+            ========================= -->
+
+                <div class="card focus-card">
+
+                    <!-- BACKGROUND -->
+                    <div class="focus-bg"></div>
+                    <div class="focus-overlay"></div>
+                    <div class="focus-glow"></div>
+
+                    <!-- FLOATING PARTICLES -->
+                    <div class="focus-stars">
+
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+
+                    </div>
+
+                    <!-- CONTENT -->
+                    <div class="focus-content">
+
+                        <!-- HEADER -->
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>Sesión de estudio</h2>
+
+                                <p class="focus-subtitle">
+                                    Enfócate en ti, el resultado llegará.
+                                </p>
+
+                            </div>
+
+                            <div class="focus-actions">
+
+                                <div class="status" id="sessionStatus">
+
+                                    <span></span>
+                                    Modo enfoque
+
+                                </div>
+
+                                <button class="music-btn">
+
+                                    <i class="ri-music-2-fill"></i>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                        <!-- TIMER -->
+                        <div class="focus-circle">
+
+                            <div class="timer-ring">
+
+                                <svg
+                                    class="progress-ring"
+                                    viewBox="0 0 280 280"
+                                    aria-hidden="true"
+                                >
+
+                                    <defs>
+
+                                        <linearGradient
+                                            id="gradientStroke"
+                                            x1="0%"
+                                            y1="0%"
+                                            x2="100%"
+                                            y2="100%"
+                                        >
+
+                                            <stop offset="0%" stop-color="#7c5cff"/>
+                                            <stop offset="100%" stop-color="#d18cff"/>
+
+                                        </linearGradient>
+
+                                    </defs>
+
+                                    <circle
+                                        class="progress-bg"
+                                        cx="140"
+                                        cy="140"
+                                        r="130"
+                                    />
+
+                                    <circle
+                                        class="progress-ring-circle"
+                                        cx="140"
+                                        cy="140"
+                                        r="130"
+                                    />
+
+                                </svg>
+
+                                <div class="circle">
+
+                                    <div class="focus-mode-label" id="focusModeLabel">
+                                        Enfocado
+                                    </div>
+
+                                    <h1 id="timer">25:00</h1>
+
+                                    <p>Tiempo restante</p>
+
+                                    <button
+                                        class="primary-btn"
+                                        id="startBtn"
+                                    >
+
+                                        <i class="ri-play-fill"></i>
+                                        Iniciar sesión
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                            <div class="timer-buttons">
+
+                                <button
+                                    class="secondary-btn"
+                                    id="pauseBtn"
+                                    title="Pausar"
+                                >
+
+                                    <i class="ri-pause-line"></i>
+
+                                </button>
+
+                                <button
+                                    class="secondary-btn"
+                                    id="resetBtn"
+                                    title="Reiniciar"
+                                >
+
+                                    <i class="ri-restart-line"></i>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                        <!-- SESSION FLOW -->
+                        <div class="session-flow">
+
+                            <div
+                                class="flow-card active"
+                                data-time="25"
+                                role="button"
+                                tabindex="0"
+                            >
+
+                                🍅
+
+                                <div>
+
+                                    <span>Pomodoro</span>
+                                    <small>25 min</small>
+
+                                </div>
+
+                            </div>
+
+                            <div class="flow-arrow">
+                                →
+                            </div>
+
+                            <div
+                                class="flow-card"
+                                data-time="5"
+                                role="button"
+                                tabindex="0"
+                            >
+
+                                ☕
+
+                                <div>
+
+                                    <span>Descanso corto</span>
+                                    <small>5 min</small>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- PET CARD -->
+                <div class="card pet-card">
+
+                    <div class="pet-header">
+
+                        <div>
+
+                            <h2>Tu mascota: <span>Buddy</span></h2>
+                            <p id="levelText">Nivel 1</p>
+
+                        </div>
+
+                        <div class="xp" id="xpText">
+                            0 / 350 XP
+                        </div>
+
+                    </div>
+
+                    <!-- XP BAR -->
+                    <div class="xp-bar">
+
+                        <div
+                            class="xp-fill"
+                            id="xpFill"
+                        ></div>
+
+                    </div>
+
+                    <!-- PET CONTENT -->
+                    <div class="pet-content">
+
+                        <div class="pet-message">
+
+                            <h3 id="petTitle">
+                                ¡Estoy orgulloso de ti! 💜
+                            </h3>
+
+                            <p>
+                                Cada minuto de enfoque
+                                te acerca más a tus metas.
+                            </p>
+
+                        </div>
+
+                        <div class="pet-mascot-slot">
+
+                            <div
+                                class="pet-mascot-placeholder"
+                                id="buddyPlaceholder"
+                            >
+
+                                <i class="ri-sparkling-2-line"></i>
+                                <span>Espacio reservado para Buddy</span>
+                                <small>Asset pendiente</small>
+
+                            </div>
+
+                            <img
+                                class="pet-mascot-img is-hidden"
+                                alt="Buddy"
+                                id="buddyImage"
+                            >
+
+                        </div>
+
+                    </div>
+
+                    <!-- MOOD -->
+                    <div class="mood-card">
+
+                        <div class="mood-icon">
+                            <i class="ri-emotion-happy-line"></i>
+                        </div>
+
+                        <div>
+
+                            <h4>Feliz</h4>
+                            <p>Tu racha me hace muy feliz</p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- TASKS CARD -->
+                <div class="card tasks-card">
+
+                    <div class="card-header">
+
+                        <div class="tasks-title">
+
+                            <h2>Tareas de hoy</h2>
+                            <span>3 pendientes</span>
+
+                        </div>
+
+                        <button class="small-btn" data-section-trigger="tasks">
+                            <i class="ri-add-line"></i>
+                            Nueva
+                        </button>
+
+                    </div>
+
+                    <div class="task-list" id="todayTaskList">
+
+                    </div>
+
+                </div>
+
+                <!-- PRODUCTIVITY CARD -->
+                <div class="card productivity-card">
+
+                    <div class="productivity-header">
+
+                        <div>
+
+                            <h2>Tu productividad</h2>
+                            <p>Resumen semanal</p>
+
+                        </div>
+
+                        <button class="period-btn">
+                            Esta semana
+                            <i class="ri-arrow-down-s-line"></i>
+                        </button>
+
+                    </div>
+
+                    <div class="productivity-overview">
+
+                        <div class="productivity-donut">
+
+                            <canvas id="studyChart"></canvas>
+
+                            <div class="productivity-score">
+                                <strong>84%</strong>
+                                <span>Productividad</span>
+                            </div>
+
+                        </div>
+
+                        <!-- PROGRESS -->
+                        <div class="productivity-progress">
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>
+                                    <i class="legend-dot green"></i>
+                                    Enfoque profundo
+                                </span>
+                                <span>16h 30m</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill green"></div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>
+                                    <i class="legend-dot blue"></i>
+                                    Estudio ligero
+                                </span>
+                                <span>6h 20m</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill blue"></div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="progress-item">
+
+                            <div class="progress-info">
+
+                                <span>
+                                    <i class="legend-dot orange"></i>
+                                    Descansos
+                                </span>
+                                <span>3h 10m</span>
+
+                            </div>
+
+                            <div class="progress-bar">
+
+                                <div class="progress-fill orange"></div>
+
+                            </div>
+
+                        </div>
+
+                            <div class="progress-item">
+
+                                <div class="progress-info">
+
+                                    <span>
+                                        <i class="legend-dot red"></i>
+                                        Distracciones
+                                    </span>
+                                    <span>1h 20m</span>
+
+                                </div>
+
+                                <div class="progress-bar">
+
+                                    <div class="progress-fill red"></div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="productivity-insight">
+
+                        <div class="insight-icon">
+                            <i class="ri-brain-line"></i>
+                        </div>
+
+                        <div>
+
+                            <h4>Insight de la semana</h4>
+                            <p>Estudias mejor por las noches. Tu pico de enfoque es entre 7PM - 11PM.</p>
+
+                        </div>
+
+                        <div class="insight-bars" aria-hidden="true">
+
+                            <span style="--bar-height:18px; --delay:0s"></span>
+                            <span style="--bar-height:26px; --delay:.08s"></span>
+                            <span style="--bar-height:34px; --delay:.16s"></span>
+                            <span style="--bar-height:48px; --delay:.24s"></span>
+                            <span style="--bar-height:64px; --delay:.32s"></span>
+                            <span style="--bar-height:78px; --delay:.4s"></span>
+                            <span style="--bar-height:58px; --delay:.48s"></span>
+
+                        </div>
+
+                    </div>
+
+                    <!-- MINI STATS -->
+                    <div class="mini-stats">
+
+                        <div class="mini-stat">
+
+                            <h3 id="studyHours">0h</h3>
+                            <p>Tiempo total</p>
+
+                        </div>
+
+                        <div class="mini-stat">
+
+                            <h3 id="sessionsCount">0</h3>
+                            <p>Sesiones</p>
+
+                        </div>
+
+                        <div class="mini-stat">
+
+                            <h3 id="consistency">100%</h3>
+                            <p>Consistencia</p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            </section>
+
+            <section class="dashboard-section" id="section-tasks">
+
+                <div class="section-grid">
+
+                    <div class="card task-create-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>Crear nueva tarea</h2>
+                                <p>Organiza tus entregas y sesiones desde un solo lugar.</p>
+
+                            </div>
+
+                        </div>
+
+                        <form class="task-form" id="taskForm">
+
+                            <label>
+                                Tarea
+                                <input type="text" id="taskTitle" placeholder="Ej: Repasar estructuras de datos" required>
+                            </label>
+
+                            <div class="form-row">
+
+                                <label>
+                                    Fecha
+                                    <input type="date" id="taskDate">
+                                </label>
+
+                                <label>
+                                    Prioridad
+                                    <select id="taskPriority">
+                                        <option value="alta">Alta</option>
+                                        <option value="media" selected>Media</option>
+                                        <option value="baja">Baja</option>
+                                    </select>
+                                </label>
+
+                            </div>
+
+                            <label>
+                                Duración estimada
+                                <input type="number" id="taskDuration" min="5" step="5" value="30">
+                            </label>
+
+                            <button class="primary-btn task-submit" type="submit">
+                                <i class="ri-add-line"></i>
+                                Crear tarea
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                    <div class="card task-page-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>Todas las tareas</h2>
+                                <p id="taskPageSummary">Cargando tareas...</p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="task-list" id="allTaskList"></div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-calendar">
+
+                <div class="card calendar-card">
+
+                    <div class="calendar-header">
+
+                        <div>
+
+                            <h2 id="calendarTitle">Calendario</h2>
+                            <p>Visualiza tus tareas por fecha y mantén claridad semanal.</p>
+
+                        </div>
+
+                        <div class="calendar-controls">
+
+                            <button class="secondary-btn" id="prevMonthBtn" title="Mes anterior">
+                                <i class="ri-arrow-left-s-line"></i>
+                            </button>
+
+                            <button class="secondary-btn" id="nextMonthBtn" title="Mes siguiente">
+                                <i class="ri-arrow-right-s-line"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    <div class="calendar-layout">
+
+                        <div class="calendar-board">
+
+                            <div class="calendar-weekdays">
+                                <span>Lun</span>
+                                <span>Mar</span>
+                                <span>Mié</span>
+                                <span>Jue</span>
+                                <span>Vie</span>
+                                <span>Sáb</span>
+                                <span>Dom</span>
+                            </div>
+
+                            <div class="calendar-grid" id="calendarGrid"></div>
+
+                        </div>
+
+                        <aside class="calendar-day-panel">
+
+                            <h3 id="selectedDayTitle">Tareas del día</h3>
+                            <div class="task-list compact" id="selectedDayTasks"></div>
+
+                        </aside>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-analytics">
+
+                <div class="card placeholder-section-card">
+                    <h2>Análisis</h2>
+                    <p>Tu vista de productividad ya está en Inicio. Aquí prepararemos métricas más profundas sin alterar el diseño actual.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-sessions">
+
+                <div class="card placeholder-section-card">
+                    <h2>Sesiones</h2>
+                    <p>La sesión Pomodoro principal se mantiene en Inicio. Esta sección queda preparada para historial y configuración de sesiones.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-achievements">
+
+                <div class="card placeholder-section-card">
+                    <h2>Logros</h2>
+                    <p>Pronto podrás revisar insignias, rachas y progreso acumulado.</p>
+                </div>
+
+            </section>
+
+            <section class="dashboard-section" id="section-settings">
+
+                <div class="card placeholder-section-card">
+                    <h2>Ajustes</h2>
+                    <p>Espacio reservado para preferencias del dashboard y cuenta.</p>
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="dashboard.js"></script>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+</body>
+
+</html>
+</file>
+
+</files>

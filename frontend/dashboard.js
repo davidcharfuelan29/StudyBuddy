@@ -1,6 +1,96 @@
-console.log("StudyBuddy Dashboard Loaded");
-
 const API_URL = "http://127.0.0.1:8000";
+
+function getAuthHeaders(){
+    const token = localStorage.getItem("token");
+    const headers = {"Content-Type": "application/json"};
+    if(token){
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+if(!localStorage.getItem("token")){
+    window.location.href = "login.html";
+}
+
+/* =========================
+   TOAST SYSTEM
+========================= */
+
+function showToast(message, type = 'info', icon){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const icons = {
+        success: 'ri-checkbox-circle-fill',
+        info: 'ri-information-fill',
+        warning: 'ri-alert-fill',
+        error: 'ri-close-circle-fill',
+    };
+
+    const toast =
+        document.createElement('div');
+
+    toast.className =
+        `toast ${type}`;
+
+    toast.innerHTML = `
+        <i class="${icon || icons[type] || icons.info}"></i>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+
+        if(toast.parentNode){
+
+            toast.remove();
+
+        }
+
+    }, 4000);
+
+}
+
+function showUndoToast(message, onUndo){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const toast =
+        document.createElement('div');
+
+    toast.className = 'toast warning has-undo';
+
+    toast.innerHTML = `
+        <i class="ri-delete-bin-line"></i>
+        <span>${message}</span>
+        <button class="toast-undo">Deshacer</button>
+    `;
+
+    container.appendChild(toast);
+
+    toast.querySelector('.toast-undo')
+        .addEventListener('click', () => {
+
+            if(onUndo) onUndo();
+            toast.remove();
+
+        });
+
+    setTimeout(() => {
+
+        if(toast.parentNode) toast.remove();
+
+    }, 5000);
+
+}
 
 /* =========================
    PARTICLES SYSTEM
@@ -421,6 +511,8 @@ function startPomodoro(){
 
             totalStudyMinutes += currentMode;
 
+            saveSessionToBackend(currentMode, 'pomodoro');
+
             /* =========================
                XP SYSTEM
             ========================= */
@@ -433,7 +525,10 @@ function startPomodoro(){
 
                 currentLevel++;
 
-                alert(`🎉 Subiste al nivel ${currentLevel}`);
+                showToast(
+                    `¡Subiste al nivel ${currentLevel}! 🎉`,
+                    'success'
+                );
 
             }
 
@@ -491,9 +586,19 @@ function startPomodoro(){
                 Completado
             `;
 
+            /* NOTIFICATION */
+
+            sendNotification(
+                '¡Sesión completada! 🎉',
+                `${currentMode} minutos de enfoque. ¡Sigue así!`
+            );
+
             /* ALERT */
 
-            alert('🎉 Sesión completada');
+            showToast(
+                'Sesión completada 🎉 ¡Excelente trabajo!',
+                'success'
+            );
 
         }
 
@@ -550,6 +655,226 @@ function resetPomodoro(){
 }
 
 /* =========================
+   SAVE SESSION TO BACKEND
+========================= */
+
+async function saveSessionToBackend(minutes, mode){
+
+    try{
+
+        await fetch(`${API_URL}/sessions`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                duration_minutes: minutes,
+                mode: mode || 'pomodoro',
+            }),
+        });
+
+    }
+
+    catch(error){
+
+        console.warn('No se pudo guardar la sesión en el backend:', error);
+
+    }
+
+}
+
+/* =========================
+   LOAD STATS FROM BACKEND
+========================= */
+
+async function loadStatsFromBackend(){
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/stats`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(!response.ok) return;
+
+        const stats = await response.json();
+
+        completedSessions = stats.total_sessions;
+        totalStudyMinutes = stats.total_minutes;
+
+        localStorage.setItem('completedSessions', completedSessions);
+        localStorage.setItem('studyMinutes', totalStudyMinutes);
+        localStorage.setItem('currentXP', stats.xp);
+        localStorage.setItem('currentLevel', stats.level);
+
+        currentXP = stats.xp;
+        currentLevel = stats.level;
+
+        loadStats();
+
+        const streakCount =
+            document.getElementById('streakCount');
+
+        if(streakCount){
+
+            const days = stats.current_streak;
+
+            streakCount.textContent =
+                `${days} ${days === 1 ? 'día' : 'días'}`;
+
+        }
+
+        const streakMessage =
+            document.getElementById('streakMessage');
+
+        if(streakMessage){
+
+            const s = stats.current_streak;
+
+            if(s === 0){
+
+                streakMessage.textContent =
+                    'Completa tu primera sesión 🔥';
+
+            } else if(s < 3){
+
+                streakMessage.textContent =
+                    'Buen inicio, sigue así 💪';
+
+            } else if(s < 7){
+
+                streakMessage.textContent =
+                    '¡Vas genial! 🔥';
+
+            } else {
+
+                streakMessage.textContent =
+                    `¡${s} días de racha, imparable! 🚀`;
+
+            }
+
+        }
+
+    }
+
+    catch(error){
+
+        console.warn('No se pudieron cargar stats del backend:', error);
+
+    }
+
+    /* FETCH SESSIONS FOR CHART */
+
+    try{
+
+        const sRes =
+            await fetch(`${API_URL}/sessions`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(sRes.ok){
+
+            const sessions =
+                await sRes.json();
+
+            updateProductivityChart(sessions);
+
+        }
+
+    }
+
+    catch(e){
+
+        console.warn('No se pudieron cargar sesiones para chart:', e);
+
+    }
+
+}
+
+/* =========================
+   UPDATE PRODUCTIVITY CHART
+========================= */
+
+function updateProductivityChart(sessions){
+
+    if(!studyChart) return;
+
+    let focusMinutes = 0;
+    let breakMinutes = 0;
+
+    sessions.forEach(s => {
+        if(s.mode === 'pomodoro'){
+            focusMinutes += s.duration_minutes;
+        } else {
+            breakMinutes += s.duration_minutes;
+        }
+    });
+
+    const totalMinutes = focusMinutes + breakMinutes || 1;
+    const focusPct = Math.round((focusMinutes / totalMinutes) * 100);
+
+    studyChart.data.datasets[0].data = [
+        focusPct,
+        Math.round((breakMinutes / totalMinutes) * 100),
+        0,
+        0,
+    ];
+
+    studyChart.update();
+
+    /* PRODUCTIVITY SCORE */
+
+    const scoreEl =
+        document.querySelector('.productivity-score strong');
+
+    if(scoreEl){
+        scoreEl.textContent = `${focusPct}%`;
+    }
+
+    /* PROGRESS BARS */
+
+    const progressItems =
+        document.querySelectorAll('.progress-item');
+
+    const categories = [
+        { label: 'Enfoque', minutes: focusMinutes },
+        { label: 'Descansos', minutes: breakMinutes },
+        { label: 'Estudio ligero', minutes: 0 },
+        { label: 'Distracciones', minutes: 0 },
+    ];
+
+    categories.forEach((cat, i) => {
+
+        const item = progressItems[i];
+        if(!item) return;
+
+        const timeSpan =
+            item.querySelector('.progress-info span:last-child');
+
+        if(timeSpan){
+            const h = Math.floor(cat.minutes / 60);
+            const m = cat.minutes % 60;
+            timeSpan.textContent =
+                h > 0
+                    ? `${h}h ${m}m`
+                    : `${m}m`;
+        }
+
+        const fill =
+            item.querySelector('.progress-fill');
+
+        if(fill){
+            const pct =
+                totalMinutes > 0
+                    ? Math.round((cat.minutes / totalMinutes) * 100)
+                    : 0;
+            fill.style.width = `${Math.max(pct, 0)}%`;
+        }
+
+    });
+
+}
+
+/* =========================
    BUTTON EVENTS
 ========================= */
 
@@ -577,6 +902,24 @@ sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('collapsed');
 
 });
+
+/* =========================
+   LOGOUT BUTTON
+========================= */
+
+const logoutBtn = document.querySelector('.logout-btn');
+
+if(logoutBtn){
+
+    logoutBtn.addEventListener('click', () => {
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+
+    });
+
+}
 
 /* =========================
    SESSION MODES (FLOW CARDS)
@@ -747,6 +1090,12 @@ function setActiveSection(sectionId){
 
     }
 
+    if(sectionId === 'sessions'){
+
+        renderSessions();
+
+    }
+
 }
 
 menuLinks.forEach(link => {
@@ -854,8 +1203,8 @@ function createTaskElement(task){
                 ${task.priority}
             </span>
             <small>${task.duration_minutes} min</small>
-            <button class="task-menu" title="Más opciones">
-                <i class="ri-more-2-fill"></i>
+            <button class="task-menu" title="Eliminar tarea">
+                <i class="ri-delete-bin-line"></i>
             </button>
         </div>
     `;
@@ -871,16 +1220,48 @@ function createTaskElement(task){
 
     });
 
+    const menuButton =
+        taskElement.querySelector('.task-menu');
+
+    if(menuButton){
+
+        menuButton.addEventListener('click', (e) => {
+
+            e.stopPropagation();
+
+            deleteTask(task.id);
+
+        });
+
+    }
+
     return taskElement;
 
 }
 
 async function fetchTasks(){
 
+    /* SHOW SKELETONS */
+
+    const skeletonHtml =
+        Array(3).fill('<div class="skeleton skeleton-task"></div>').join('');
+
+    if(todayTaskList) todayTaskList.innerHTML = skeletonHtml;
+    if(allTaskList) allTaskList.innerHTML = skeletonHtml;
+
     try{
 
         const response =
-            await fetch(`${API_URL}/tasks`);
+            await fetch(`${API_URL}/tasks`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(response.status === 401){
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+            return;
+        }
 
         if(!response.ok) throw new Error('No se pudieron cargar las tareas');
 
@@ -898,6 +1279,11 @@ async function fetchTasks(){
 
         tasks = [];
 
+        showToast(
+            'No se pudieron cargar las tareas. Verifica conexión.',
+            'error'
+        );
+
     }
 
     renderTodayTasks();
@@ -911,13 +1297,16 @@ async function createTask(payload){
     const response =
         await fetch(`${API_URL}/tasks`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload),
         });
 
     if(!response.ok){
+
+        showToast(
+            'No se pudo crear la tarea',
+            'error'
+        );
 
         throw new Error('No se pudo crear la tarea');
 
@@ -937,9 +1326,7 @@ async function updateTask(taskId, payload){
     const response =
         await fetch(`${API_URL}/tasks/${taskId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 ...currentTask,
                 ...payload,
@@ -949,6 +1336,78 @@ async function updateTask(taskId, payload){
     if(response.ok){
 
         await fetchTasks();
+
+    } else {
+
+        showToast(
+            'Error al actualizar la tarea',
+            'error'
+        );
+
+    }
+
+}
+
+async function deleteTask(taskId){
+
+    const task =
+        tasks.find(t => t.id === Number(taskId));
+
+    if(!task) return;
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+
+        if(response.ok){
+
+            showUndoToast('Tarea eliminada', async () => {
+
+                try{
+
+                    await fetch(`${API_URL}/tasks`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            title: task.title,
+                            due_date: task.due_date,
+                            priority: task.priority,
+                            duration_minutes: task.duration_minutes,
+                            completed: task.completed,
+                        }),
+                    });
+
+                    showToast('Tarea restaurada', 'success');
+
+                    await fetchTasks();
+
+                }
+
+                catch(err){
+
+                    showToast('No se pudo restaurar la tarea', 'error');
+
+                }
+
+            });
+
+            await fetchTasks();
+
+        } else {
+
+            showToast('Error al eliminar la tarea', 'error');
+
+        }
+
+    }
+
+    catch(error){
+
+        showToast('Error de conexión al eliminar', 'error');
 
     }
 
@@ -972,16 +1431,16 @@ function renderTaskList(container, taskItems){
 
 function renderTodayTasks(){
 
-    const todayTasks =
-        tasks.filter(task => task.due_date === formatDate(today));
+    const pendingTasks =
+        tasks.filter(task => !task.completed);
 
     renderTaskList(
         todayTaskList,
-        todayTasks.slice(0, 4)
+        pendingTasks.slice(0, 5)
     );
 
     const pendingCount =
-        todayTasks.filter(task => !task.completed).length;
+        pendingTasks.length;
 
     const todayCounter =
         document.querySelector('.tasks-title span');
@@ -992,6 +1451,8 @@ function renderTodayTasks(){
             `${pendingCount} pendientes`;
 
     }
+
+    updateBadgeCount();
 
 }
 
@@ -1008,6 +1469,8 @@ function renderAllTasks(){
             `${tasks.length} tareas registradas • ${pending} pendientes`;
 
     }
+
+    updateBadgeCount();
 
 }
 
@@ -1037,6 +1500,121 @@ function renderSelectedDayTasks(dateString){
         selectedDayTasks,
         getTasksByDate(dateString)
     );
+
+}
+
+/* =========================
+   RENDER SESSIONS
+========================= */
+
+async function renderSessions(){
+
+    const list =
+        document.getElementById('sessionsList');
+
+    if(!list) return;
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/sessions`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(!response.ok) throw new Error();
+
+        const sessions = await response.json();
+
+        if(!sessions.length){
+
+            list.innerHTML = `
+                <div class="sessions-empty">
+                    <i class="ri-timer-flash-line"></i>
+                    <p>No hay sesiones registradas aún. Completa un Pomodoro para ver tu historial aquí.</p>
+                </div>
+            `;
+            return;
+
+        }
+
+        list.innerHTML = '';
+
+        sessions.forEach(s => {
+
+            const date = new Date(s.created_at + 'Z');
+
+            const dateStr =
+                date.toLocaleDateString('es-CO', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                });
+
+            const timeStr =
+                date.toLocaleTimeString('es-CO', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+
+            const modeLabel =
+                s.mode === 'pomodoro' ? 'Enfoque'
+                    : s.mode === 'long-break' ? 'Descanso largo'
+                    : 'Descanso';
+
+            const modeClass =
+                s.mode === 'pomodoro' ? 'pomodoro'
+                    : s.mode === 'long-break' ? 'long-break'
+                    : 'break';
+
+            const row =
+                document.createElement('div');
+
+            row.className = 'session-row';
+
+            row.innerHTML = `
+                <span class="session-date">${dateStr} · ${timeStr}</span>
+                <span class="session-duration">${s.duration_minutes} min</span>
+                <span class="session-mode ${modeClass}">${modeLabel}</span>
+                <i class="ri-checkbox-circle-fill" style="color:#4cff88;font-size:18px;"></i>
+            `;
+
+            list.appendChild(row);
+
+        });
+
+    }
+
+    catch(error){
+
+        list.innerHTML = `
+            <div class="sessions-empty">
+                <i class="ri-cloud-off-line"></i>
+                <p>No se pudieron cargar las sesiones. Verifica conexión con el backend.</p>
+            </div>
+        `;
+
+    }
+
+}
+
+/* =========================
+   UPDATE BADGE COUNT
+========================= */
+
+function updateBadgeCount(){
+
+    const badge =
+        document.getElementById('taskBadge');
+
+    if(!badge) return;
+
+    const pending =
+        tasks.filter(t => !t.completed).length;
+
+    badge.textContent = pending;
+
+    badge.style.display =
+        pending > 0 ? '' : 'none';
 
 }
 
@@ -1133,6 +1711,19 @@ if(taskForm){
 
         if(!title) return;
 
+        const submitBtn =
+            taskForm.querySelector('.task-submit');
+
+        const originalText =
+            submitBtn.innerHTML;
+
+        submitBtn.disabled = true;
+
+        submitBtn.innerHTML = `
+            <i class="ri-loader-4-line"></i>
+            Creando...
+        `;
+
         try{
 
             await createTask({
@@ -1147,11 +1738,22 @@ if(taskForm){
 
             document.getElementById('taskDuration').value = 30;
 
+            submitBtn.disabled = false;
+
+            submitBtn.innerHTML = originalText;
+
         }
 
         catch(error){
 
-            alert('No se pudo crear la tarea. Revisa que el backend esté activo.');
+            submitBtn.disabled = false;
+
+            submitBtn.innerHTML = originalText;
+
+            showToast(
+                'No se pudo crear la tarea. ¿El backend está activo?',
+                'error'
+            );
 
         }
 
@@ -1204,27 +1806,29 @@ if(nextMonthBtn){
 const chartCanvas =
     document.getElementById('studyChart');
 
+let studyChart = null;
+
 if(chartCanvas && window.Chart){
 
     const ctxChart =
         chartCanvas.getContext('2d');
 
-    new Chart(ctxChart, {
+    studyChart = new Chart(ctxChart, {
 
         type: 'doughnut',
 
         data: {
 
             labels: [
-                'Enfoque profundo',
-                'Estudio ligero',
+                'Enfoque',
                 'Descansos',
+                'Estudio ligero',
                 'Distracciones'
             ],
 
             datasets: [{
 
-                data: [60, 23, 11, 6],
+                data: [0, 0, 0, 0],
 
                 backgroundColor: [
                     '#50e486',
@@ -1275,11 +1879,142 @@ if(chartCanvas && window.Chart){
 }
 
 /* =========================
+   LOAD USER INTO SIDEBAR
+========================= */
+
+function loadUserInSidebar(){
+
+    const stored = localStorage.getItem('user');
+
+    if(!stored) return;
+
+    try{
+
+        const userData = JSON.parse(stored);
+
+        const name =
+            userData.email.split('@')[0] || userData.email;
+
+        const nameElement =
+            document.querySelector('.user-info h3');
+
+        const roleElement =
+            document.querySelector('.user-info p');
+
+        if(nameElement){
+
+            nameElement.textContent = name;
+
+        }
+
+        if(roleElement){
+
+            roleElement.textContent = userData.email;
+
+        }
+
+        const greetingName =
+            document.getElementById('greetingName');
+
+        if(greetingName){
+
+            greetingName.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+
+        }
+
+    }
+
+    catch(e){
+
+        console.warn('No se pudo cargar usuario en sidebar');
+
+    }
+
+}
+
+/* =========================
+   NOTIFICATION API
+========================= */
+
+function sendNotification(title, body){
+
+    if(!('Notification' in window)) return;
+
+    if(Notification.permission === 'granted'){
+
+        new Notification(title, {
+            body,
+            icon: 'assets/imagenes/logo.png',
+        });
+
+    } else if(Notification.permission !== 'denied'){
+
+        Notification.requestPermission();
+
+    }
+
+}
+
+/* =========================
+   KEYBOARD SHORTCUT (SPACE)
+========================= */
+
+document.addEventListener('keydown', (e) => {
+
+    if(e.target.tagName === 'INPUT' ||
+       e.target.tagName === 'TEXTAREA' ||
+       e.target.tagName === 'SELECT') return;
+
+    if(e.key === ' ' || e.code === 'Space'){
+
+        e.preventDefault();
+
+        if(timerRunning){
+
+            pausePomodoro();
+
+        } else {
+
+            const btnText =
+                startButton.textContent.trim();
+
+            if(btnText === 'Iniciar sesión' ||
+               btnText === 'Continuar'){
+
+                startPomodoro();
+
+            }
+
+        }
+
+    }
+
+});
+
+/* =========================
+   PAUSE ON TAB HIDDEN
+========================= */
+
+document.addEventListener('visibilitychange', () => {
+
+    if(document.hidden && timerRunning){
+
+        pausePomodoro();
+
+    }
+
+});
+
+/* =========================
    INITIALIZE
 ========================= */
 
 updateTimer();
 
 loadStats();
+
+loadStatsFromBackend();
+
+loadUserInSidebar();
 
 fetchTasks();
