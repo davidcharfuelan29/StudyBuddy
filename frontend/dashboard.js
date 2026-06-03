@@ -287,21 +287,15 @@ let selectedCalendarDate =
    STATS VARIABLES
 ========================= */
 
-let completedSessions =
-    Number(localStorage.getItem('completedSessions')) || 0;
-
-let totalStudyMinutes =
-    Number(localStorage.getItem('studyMinutes')) || 0;
+let completedSessions = 0;
+let totalStudyMinutes = 0;
 
 /* =========================
    XP SYSTEM
 ========================= */
 
-let currentXP =
-    Number(localStorage.getItem('currentXP')) || 0;
-
-let currentLevel =
-    Number(localStorage.getItem('currentLevel')) || 1;
+let currentXP = 0;
+let currentLevel = 1;
 
 const maxXP = 350;
 
@@ -479,6 +473,73 @@ function loadStats(){
 }
 
 /* =========================
+   ANALYTICS SECTION
+========================= */
+
+function loadAnalytics(stats, allTasks){
+
+    const sessionsEl = document.getElementById('analyticsSessions');
+    if(sessionsEl && stats){
+        sessionsEl.textContent = stats.total_sessions;
+    }
+
+    const hoursEl = document.getElementById('analyticsHours');
+    if(hoursEl && stats){
+        const h = Math.floor(stats.total_minutes / 60);
+        hoursEl.textContent = `${h}h`;
+    }
+
+    const pendingEl = document.getElementById('analyticsPendingTasks');
+    if(pendingEl && allTasks){
+        pendingEl.textContent = allTasks.filter(t => !t.completed).length;
+    }
+
+    const streakEl = document.getElementById('analyticsStreak');
+    if(streakEl && stats){
+        const d = stats.current_streak;
+        streakEl.textContent = `${d} ${d === 1 ? 'día' : 'días'}`;
+    }
+
+    const insightEl = document.getElementById('analyticsInsight');
+    if(insightEl && stats){
+        if(stats.total_sessions === 0){
+            insightEl.textContent = 'Completa tu primera sesión para generar métricas.';
+        } else if(stats.total_sessions < 5){
+            insightEl.textContent = 'Buen comienzo. Sigue acumulando sesiones para ver tendencias.';
+        } else if(stats.current_streak >= 7){
+            insightEl.textContent = `¡${stats.current_streak} días de racha! Tu constancia es impresionante.`;
+        } else if(stats.total_sessions >= 20){
+            insightEl.textContent = 'Ya tienes datos suficientes. Revisa tu progreso semanal en Inicio.';
+        } else {
+            insightEl.textContent = `${stats.total_sessions} sesiones completadas. Sigue así para ver más estadísticas.`;
+        }
+    }
+
+}
+
+/* =========================
+   ACHIEVEMENTS
+========================= */
+
+function loadAchievements(stats){
+
+    const firstEl = document.getElementById('achievementFirstSession');
+    const streakEl = document.getElementById('achievementStreak');
+    const levelEl = document.getElementById('achievementLevel');
+
+    if(firstEl && stats){
+        firstEl.classList.toggle('is-unlocked', stats.total_sessions >= 1);
+    }
+    if(streakEl && stats){
+        streakEl.classList.toggle('is-unlocked', stats.current_streak >= 3);
+    }
+    if(levelEl && stats){
+        levelEl.classList.toggle('is-unlocked', stats.level >= 2);
+    }
+
+}
+
+/* =========================
    UPDATE TIMER
 ========================= */
 
@@ -540,80 +601,25 @@ function startPomodoro(){
                 .classList.remove('running');
 
             /* =========================
-               SAVE SESSION
+               SAVE SESSION & REFRESH STATS
             ========================= */
 
-            completedSessions++;
-
-            totalStudyMinutes += currentMode;
-
-            saveSessionToBackend(currentMode, 'pomodoro');
+            saveSessionToBackend(currentMode, 'pomodoro').then(ok => {
+                if(ok) loadStatsFromBackend();
+            });
 
             /* =========================
-               XP SYSTEM
+               UI FEEDBACK
             ========================= */
 
-            currentXP += 50;
-
-            if(currentXP >= maxXP){
-
-                currentXP = 0;
-
-                currentLevel++;
-
-                showToast(
-                    `¡Subiste al nivel ${currentLevel}! 🎉`,
-                    'success'
-                );
-
-            }
-
-            /* =========================
-               SAVE LOCAL STORAGE
-            ========================= */
-
-            localStorage.setItem(
-                'completedSessions',
-                completedSessions
-            );
-
-            localStorage.setItem(
-                'studyMinutes',
-                totalStudyMinutes
-            );
-
-            localStorage.setItem(
-                'currentXP',
-                currentXP
-            );
-
-            localStorage.setItem(
-                'currentLevel',
-                currentLevel
-            );
-
-            /* =========================
-               UPDATE UI
-            ========================= */
-
-            loadStats();
-
-            /* PET MESSAGE */
-
-            const petTitle =
-                document.getElementById('petTitle');
-
-            if(petTitle){
-
-                petTitle.textContent =
-                    '¡Excelente trabajo! Sigue así 🚀';
-
-            }
             setBuddyMood('excited');
 
             /* SOUND */
 
-            completeSound.play().catch(() => {});
+            const soundEnabled = localStorage.getItem('settings_soundEnabled');
+            if(soundEnabled !== 'false'){
+                completeSound.play().catch(() => {});
+            }
 
             /* BUTTON */
 
@@ -698,7 +704,7 @@ async function saveSessionToBackend(minutes, mode){
 
     try{
 
-        await fetch(`${API_URL}/sessions`, {
+        const res = await fetch(`${API_URL}/sessions`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -707,11 +713,14 @@ async function saveSessionToBackend(minutes, mode){
             }),
         });
 
+        return res.ok;
+
     }
 
     catch(error){
 
         console.warn('No se pudo guardar la sesión en el backend:', error);
+        return false;
 
     }
 
@@ -734,14 +743,11 @@ async function loadStatsFromBackend(){
 
         const stats = await response.json();
 
+        if(stats.level > currentLevel){
+            showToast(`¡Subiste al nivel ${stats.level}! 🎉`, 'success');
+        }
         completedSessions = stats.total_sessions;
         totalStudyMinutes = stats.total_minutes;
-
-        localStorage.setItem('completedSessions', completedSessions);
-        localStorage.setItem('studyMinutes', totalStudyMinutes);
-        localStorage.setItem('currentXP', stats.xp);
-        localStorage.setItem('currentLevel', stats.level);
-
         currentXP = stats.xp;
         currentLevel = stats.level;
 
@@ -817,6 +823,11 @@ async function loadStatsFromBackend(){
 
     }
 
+    /* UPDATE ANALYTICS & ACHIEVEMENTS */
+
+    loadAnalytics(stats, tasks);
+    loadAchievements(stats);
+
     /* FETCH SESSIONS FOR CHART */
 
     try{
@@ -832,6 +843,7 @@ async function loadStatsFromBackend(){
                 await sRes.json();
 
             updateProductivityChart(sessions);
+            renderMiniStreak(sessions);
 
         }
 
@@ -840,6 +852,7 @@ async function loadStatsFromBackend(){
     catch(e){
 
         console.warn('No se pudieron cargar sesiones para chart:', e);
+        renderMiniStreak([]);
 
     }
 
@@ -891,9 +904,9 @@ function updateProductivityChart(sessions){
         document.querySelectorAll('.progress-item');
 
     const categories = [
-        { label: 'Enfoque', minutes: focusMinutes },
-        { label: 'Descansos', minutes: breakMinutes },
+        { label: 'Enfoque profundo', minutes: focusMinutes },
         { label: 'Estudio ligero', minutes: 0 },
+        { label: 'Descansos', minutes: breakMinutes },
         { label: 'Distracciones', minutes: 0 },
     ];
 
@@ -901,6 +914,14 @@ function updateProductivityChart(sessions){
 
         const item = progressItems[i];
         if(!item) return;
+
+        const labelSpan = item.querySelector('.progress-info span:first-child');
+        if(labelSpan){
+            const dot = labelSpan.querySelector('.legend-dot');
+            labelSpan.innerHTML = '';
+            if(dot) labelSpan.appendChild(dot);
+            labelSpan.append(' ' + cat.label);
+        }
 
         const timeSpan =
             item.querySelector('.progress-info span:last-child');
@@ -926,6 +947,88 @@ function updateProductivityChart(sessions){
         }
 
     });
+
+    /* DYNAMIC INSIGHT */
+
+    const insightEl = document.getElementById('insightText');
+    if(!insightEl) return;
+
+    const sessionCount = sessions.length;
+
+    if(sessionCount === 0){
+        insightEl.textContent = 'Completa tu primera sesión para generar insights de productividad.';
+    } else if(focusMinutes === 0){
+        insightEl.textContent = 'Aún no has registrado sesiones de enfoque. ¡Activa el Pomodoro!';
+    } else if(sessionCount < 3){
+        insightEl.textContent = `Buen comienzo: ${focusMinutes} min de enfoque en ${sessionCount} sesiones. Sigue así para ver patrones.`;
+    } else {
+        const totalH = Math.floor(totalMinutes / 60);
+        const totalM = totalMinutes % 60;
+        const focusH = Math.floor(focusMinutes / 60);
+        const focusM = focusMinutes % 60;
+        const pct = Math.round((focusMinutes / totalMinutes) * 100);
+        insightEl.textContent =
+            `${sessionCount} sesiones · ${totalH > 0 ? `${totalH}h ` : ''}${totalM}m total · ` +
+            `${focusH > 0 ? `${focusH}h ` : ''}${focusM}m de enfoque (${pct}%)`;
+    }
+
+}
+
+/* =========================
+   MINI-STREAK DYNAMIC
+========================= */
+
+function renderMiniStreak(sessions){
+
+    const container = document.querySelector('.mini-days');
+    if(!container) return;
+
+    const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const today = new Date();
+    const currentDay = today.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+
+    const sessionDates = new Set();
+    (sessions || []).forEach(s => {
+        if(s.created_at){
+            sessionDates.add(s.created_at.slice(0, 10));
+        }
+    });
+
+    container.innerHTML = '';
+
+    for(let i = 0; i < 7; i++){
+
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+
+        const y = day.getFullYear();
+        const m = String(day.getMonth() + 1).padStart(2, '0');
+        const d = String(day.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        const isToday = dateStr === today.toISOString().slice(0, 10);
+        const hasSession = sessionDates.has(dateStr);
+        const isPast = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const div = document.createElement('div');
+        div.className = 'mini-day';
+
+        if(isToday) div.classList.add('current');
+        if(hasSession) div.classList.add('active');
+        if(!hasSession && isPast) div.classList.add('inactive');
+        if(!hasSession && !isPast && !isToday) div.classList.add('pending');
+
+        div.innerHTML = `
+            <span>${dayNames[i]}</span>
+            <i class="${hasSession ? 'ri-check-line' : ''}"></i>
+        `;
+
+        container.appendChild(div);
+
+    }
 
 }
 
@@ -1344,6 +1447,8 @@ async function fetchTasks(){
     renderTodayTasks();
     renderAllTasks();
     renderCalendar(calendarMonth, calendarYear);
+
+    loadAnalytics(null, tasks);
 
 }
 
@@ -2061,6 +2166,72 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* =========================
+   SETTINGS
+========================= */
+
+function loadSettings(){
+
+    const displayName = localStorage.getItem('settings_displayName');
+    const pomodoroDuration = localStorage.getItem('settings_pomodoroDuration');
+    const soundEnabled = localStorage.getItem('settings_soundEnabled');
+
+    const nameInput = document.getElementById('displayNameInput');
+    const pomoInput = document.getElementById('defaultPomodoroInput');
+    const soundInput = document.getElementById('soundEnabledInput');
+
+    if(nameInput && displayName){
+        nameInput.value = displayName;
+        const nameEl = document.querySelector('.user-info h3');
+        if(nameEl) nameEl.textContent = displayName;
+        const greetingEl = document.getElementById('greetingName');
+        if(greetingEl) greetingEl.textContent = displayName;
+    }
+
+    if(pomoInput && pomodoroDuration){
+        pomoInput.value = pomodoroDuration;
+    }
+
+    if(soundInput && soundEnabled !== null){
+        soundInput.checked = soundEnabled === 'true';
+    }
+
+}
+
+const settingsForm = document.getElementById('settingsForm');
+
+if(settingsForm){
+
+    settingsForm.addEventListener('submit', (e) => {
+
+        e.preventDefault();
+
+        const nameInput = document.getElementById('displayNameInput');
+        const pomoInput = document.getElementById('defaultPomodoroInput');
+        const soundInput = document.getElementById('soundEnabledInput');
+
+        if(nameInput){
+            localStorage.setItem('settings_displayName', nameInput.value);
+            const nameEl = document.querySelector('.user-info h3');
+            if(nameEl) nameEl.textContent = nameInput.value;
+            const greetingEl = document.getElementById('greetingName');
+            if(greetingEl) greetingEl.textContent = nameInput.value;
+        }
+
+        if(pomoInput){
+            localStorage.setItem('settings_pomodoroDuration', pomoInput.value);
+        }
+
+        if(soundInput){
+            localStorage.setItem('settings_soundEnabled', soundInput.checked);
+        }
+
+        showToast('Ajustes guardados', 'success');
+
+    });
+
+}
+
+/* =========================
    INITIALIZE
 ========================= */
 
@@ -2070,8 +2241,12 @@ loadStats();
 
 setBuddyMood('greeting');
 
+renderMiniStreak([]);
+
 loadStatsFromBackend();
 
 loadUserInSidebar();
+
+loadSettings();
 
 fetchTasks();

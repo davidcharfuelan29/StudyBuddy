@@ -21,6 +21,12 @@ from .auth import create_access_token, get_current_user
 app = FastAPI()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CORS_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000"
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
 
 app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
 
@@ -70,14 +76,15 @@ def ensure_missing_columns():
                         text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
                     )
 
+# Parche temporal de columnas. Reemplazar por Alembic cuando el proyecto pase a producción.
 try:
     ensure_missing_columns()
-except Exception as e:
-    print(f"[StudyBuddy] ensure_missing_columns skipped: {e}")
+except Exception:
+    pass
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -262,8 +269,9 @@ def get_stats(
 
     streak = calculate_streak(sessions)
 
-    xp = total_sessions * 50
-    level = (xp // 350) + 1
+    total_xp = total_sessions * 50
+    xp = total_xp % 350
+    level = (total_xp // 350) + 1
 
     return StatsResponse(
         total_sessions=total_sessions,

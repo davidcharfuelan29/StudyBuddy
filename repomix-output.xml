@@ -58,7 +58,9 @@ frontend/
       icon-task.svg
     imagenes/
       buddy-excited.png
+      buddy-greeting.png
       buddy-happy.png
+      buddy-sad.png
       buddy-sleep.png
       buddy-tired.png
       fondo_dashboard_morado.jpg
@@ -85,6 +87,10 @@ requirements.txt
 <files>
 This section contains the contents of the repository's files.
 
+<file path="backend/__init__.py">
+
+</file>
+
 <file path="backend/auth.py">
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
@@ -97,7 +103,11 @@ from .database import SessionLocal
 from .models import User
 from .schemas import TokenData
 
-SECRET_KEY = os.getenv("SECRET_KEY", "studybuddy-dev-secret-change-in-prod")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    import warnings
+    warnings.warn("SECRET_KEY no configurada en .env. Usando clave insegura de desarrollo. Configúrala para producción.")
+    SECRET_KEY = "studybuddy-dev-secret-change-in-prod"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
@@ -155,6 +165,22 @@ def get_current_user(
 
     finally:
         db.close()
+</file>
+
+<file path="backend/database.py">
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+
+Base = declarative_base()
 </file>
 
 <file path="backend/schemas.py">
@@ -241,26 +267,6 @@ class StatsResponse(BaseModel):
     current_streak: int
     xp: int
     level: int
-</file>
-
-<file path="backend/__init__.py">
-
-</file>
-
-<file path="backend/database.py">
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
-
-Base = declarative_base()
 </file>
 
 <file path="frontend/assets/iconos/icon-analytics.svg">
@@ -966,64 +972,6 @@ button:hover {
 </html>
 </file>
 
-<file path="frontend/login.js">
-const API_URL = "http://127.0.0.1:8000";
-
-let isLogin = true;
-
-// 👁️ mostrar contraseña
-function togglePassword() {
-    const input = document.getElementById("password");
-    input.type = input.type === "password" ? "text" : "password";
-}
-
-// 🔁 cambiar modo
-document.getElementById("switchMode").onclick = () => {
-    isLogin = !isLogin;
-
-    document.getElementById("title").textContent =
-        isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
-
-    document.getElementById("submitBtn").textContent =
-        isLogin ? "Iniciar sesión" : "Registrarse";
-};
-
-// 🚀 submit
-document.getElementById("form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const endpoint = isLogin ? "/login" : "/register";
-
-    const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        document.getElementById("message").textContent = data.detail;
-        return;
-    }
-
-    if (isLogin) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = "dashboard.html";
-    } else {
-        document.getElementById("message").style.color = "#34d399";
-        document.getElementById("message").textContent =
-            "Cuenta creada ✔ ahora inicia sesión";
-    }
-});
-</file>
-
 <file path="frontend/splash.css">
 :root {
     --bg-dark: #0b0f2a;
@@ -1317,6 +1265,71 @@ window.addEventListener("resize", () => {
 });
 </file>
 
+<file path="frontend/login.js">
+const API_URL = "http://127.0.0.1:8000";
+
+let isLogin = true;
+
+// 👁️ mostrar contraseña
+function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
+}
+
+// 🔁 cambiar modo
+document.getElementById("switchMode").onclick = () => {
+    isLogin = !isLogin;
+
+    document.getElementById("title").textContent =
+        isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
+
+    document.getElementById("submitBtn").textContent =
+        isLogin ? "Iniciar sesión" : "Registrarse";
+};
+
+// 🚀 submit
+document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const endpoint = isLogin ? "/login" : "/register";
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        document.getElementById("message").textContent = data.detail;
+        return;
+    }
+
+    if (isLogin) {
+        localStorage.setItem("token", data.access_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.location.href = "dashboard.html";
+    } else {
+        document.getElementById("message").style.color = "#34d399";
+        document.getElementById("message").textContent =
+            "Cuenta creada ✔ ahora inicia sesión";
+    }
+});
+</file>
+
+<file path=".gitignore">
+.venv
+.vscode
+__pycache__
+.env
+</file>
+
 <file path="requirements.txt">
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -1408,16 +1421,362 @@ class Session(Base):
     created_at = Column(String, default=None)
 </file>
 
-<file path=".gitignore">
-.venv
-.vscode
-__pycache__
-.env
+<file path="frontend/index.html">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <meta charset="UTF-8">
+    <title>StudyBuddy</title>
+    <link rel="stylesheet" href="splash.css">
+</head>
+
+<body>
+
+    <canvas id="particles"></canvas>
+    
+<div class="splash-container">
+
+    <img src="assets/imagenes/logo.png" class="logo" alt="Logo">
+
+    <h1 class="title">StudyBuddy</h1>
+    <p class="subtitle"> Sistema inteligente de productividad para estudiantes</p>
+    
+     <!-- IMAGEN CENTRAL -->
+    <img src="assets/imagenes/splash.png" class="mascot">
+
+    <p class="loading-text">
+        Cargando tu espacio de estudio...</p>
+
+    <div class="loader">
+        <div class="progress"></div>
+    </div>
+
+</div>
+
+<script src="splash.js"></script>
+</body>
+</html>
+</file>
+
+<file path="backend/main.py">
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from passlib.context import CryptContext
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
+from datetime import datetime, timezone
+import os
+
+from .database import SessionLocal, engine, Base
+from .models import Task, User, Session as SessionModel
+from .schemas import (
+    TaskCreate, TaskUpdate, TaskResponse,
+    UserCreate, UserLogin, UserResponse,
+    Token, SessionCreate, SessionResponse,
+    StatsResponse,
+)
+from .auth import create_access_token, get_current_user
+
+app = FastAPI()
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+Base.metadata.create_all(bind=engine)
+
+def ensure_missing_columns():
+    inspector = inspect(engine)
+    tables_info = {
+        "tasks": {
+            "due_date": "VARCHAR",
+            "priority": "VARCHAR DEFAULT 'media'",
+            "duration_minutes": "INTEGER DEFAULT 30",
+            "completed": "BOOLEAN DEFAULT FALSE",
+            "user_id": "INTEGER REFERENCES users(id)",
+        },
+        "sessions": {
+            "user_id": "INTEGER REFERENCES users(id)",
+            "duration_minutes": "INTEGER DEFAULT 25",
+            "mode": "VARCHAR DEFAULT 'pomodoro'",
+            "created_at": "VARCHAR",
+        },
+    }
+
+    with engine.begin() as connection:
+        for table_name, columns in tables_info.items():
+            if table_name not in inspector.get_table_names():
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for col_name, definition in columns.items():
+                if col_name not in existing:
+                    connection.execute(
+                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
+                    )
+
+try:
+    ensure_missing_columns()
+except Exception as e:
+    print(f"[StudyBuddy] ensure_missing_columns skipped: {e}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def home():
+    return RedirectResponse(url="/frontend/index.html")
+
+
+@app.post("/register")
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Usuario ya existe")
+
+    new_user = User(email=user.email, password=hash_password(user.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "Usuario creado"}
+
+
+@app.post("/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Usuario no existe")
+
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+
+    token = create_access_token({"user_id": db_user.id})
+
+    return Token(
+        access_token=token,
+        user=UserResponse(id=db_user.id, email=db_user.email),
+    )
+
+
+@app.get("/tasks", response_model=list[TaskResponse])
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
+    return tasks
+
+
+@app.post("/tasks", response_model=TaskResponse)
+def create_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_task = Task(
+        title=task.title,
+        due_date=task.due_date,
+        priority=task.priority,
+        duration_minutes=task.duration_minutes,
+        completed=task.completed,
+        user_id=current_user.id,
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    return task
+
+
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    updated_task: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    update_data = updated_task.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+@app.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+
+    db.delete(task)
+    db.commit()
+
+    return {"message": "Tarea eliminada"}
+
+
+@app.post("/sessions", response_model=SessionResponse)
+def create_session(
+    session: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    now = datetime.now(timezone.utc).isoformat()
+
+    new_session = SessionModel(
+        user_id=current_user.id,
+        duration_minutes=session.duration_minutes,
+        mode=session.mode,
+        created_at=now,
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+
+@app.get("/sessions", response_model=list[SessionResponse])
+def get_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .order_by(SessionModel.id.desc())
+        .limit(50)
+        .all()
+    )
+    return sessions
+
+
+@app.get("/stats", response_model=StatsResponse)
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .all()
+    )
+
+    total_sessions = len(sessions)
+    total_minutes = sum(s.duration_minutes for s in sessions)
+
+    streak = calculate_streak(sessions)
+
+    xp = total_sessions * 50
+    level = (xp // 350) + 1
+
+    return StatsResponse(
+        total_sessions=total_sessions,
+        total_minutes=total_minutes,
+        current_streak=streak,
+        xp=xp,
+        level=level,
+    )
+
+
+def calculate_streak(sessions: list) -> int:
+    if not sessions:
+        return 0
+
+    dates = set()
+    for s in sessions:
+        if s.created_at:
+            day = s.created_at[:10]
+            dates.add(day)
+
+    if not dates:
+        return 0
+
+    sorted_dates = sorted(dates, reverse=True)
+    streak = 1
+
+    from datetime import date, timedelta
+
+    today = date.today()
+
+    if sorted_dates[0] < today.isoformat():
+        last = date.fromisoformat(sorted_dates[0])
+        if (today - last).days > 1:
+            return 0
+
+    for i in range(len(sorted_dates) - 1):
+        current = date.fromisoformat(sorted_dates[i])
+        previous = date.fromisoformat(sorted_dates[i + 1])
+        if (current - previous).days == 1:
+            streak += 1
+        else:
+            break
+
+    return streak
 </file>
 
 <file path="frontend/dashboard.js">
-console.log("StudyBuddy Dashboard Loaded");
-
 const API_URL = "http://127.0.0.1:8000";
 
 function getAuthHeaders(){
@@ -1473,6 +1832,42 @@ function showToast(message, type = 'info', icon){
         }
 
     }, 4000);
+
+}
+
+function showUndoToast(message, onUndo){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const toast =
+        document.createElement('div');
+
+    toast.className = 'toast warning has-undo';
+
+    toast.innerHTML = `
+        <i class="ri-delete-bin-line"></i>
+        <span>${message}</span>
+        <button class="toast-undo">Deshacer</button>
+    `;
+
+    container.appendChild(toast);
+
+    toast.querySelector('.toast-undo')
+        .addEventListener('click', () => {
+
+            if(onUndo) onUndo();
+            toast.remove();
+
+        });
+
+    setTimeout(() => {
+
+        if(toast.parentNode) toast.remove();
+
+    }, 5000);
 
 }
 
@@ -1709,8 +2104,7 @@ const buddyImage =
 const buddyPlaceholder =
     document.getElementById('buddyPlaceholder');
 
-/* Activar cuando tengas las imágenes en assets/imagenes/ */
-const BUDDY_IMAGES_ENABLED = false;
+const BUDDY_IMAGES_ENABLED = true;
 
 function setBuddyMood(mood){
 
@@ -1718,6 +2112,8 @@ function setBuddyMood(mood){
 
     const moods = {
         happy: 'buddy-happy.png',
+        sad: 'buddy-sad.png',
+        greeting: 'buddy-greeting.png',
         sleep: 'buddy-sleep.png',
         excited: 'buddy-excited.png',
         tired: 'buddy-tired.png',
@@ -1732,6 +2128,41 @@ function setBuddyMood(mood){
 
         buddyPlaceholder.style.display = 'none';
 
+    }
+
+    /* MOOD CARD — mensajes cortos */
+    const moodMessages = {
+        happy:    ['Feliz 😊', 'Tu racha me emociona 💜'],
+        sad:      ['Triste 😢', 'Te extraño, vuelve 💔'],
+        greeting: ['¡Hola! 👋', 'Nuevo amigo en casa 🚀'],
+        sleep:    ['Zzz 😴', 'Siempre listo para ti'],
+        excited:  ['¡Eufórico! 🎉', 'Lo estás haciendo genial'],
+        tired:    ['Descanso 🧘', 'Recarga energía y vuelve'],
+    };
+
+    /* PET BUBBLE — mensaje elaborado al lado de la imagen */
+    const bubbleMessages = {
+        happy:    ['¡Racha imparable! 🔥', 'Llevas una racha activa y cada sesión te acerca más a tu mejor versión. ¡Sigue así! 💜'],
+        sad:      ['Un nuevo comienzo 💪', 'La racha se perdió, pero una sola sesión puede cambiarlo todo. ¿Comenzamos?'],
+        greeting: ['¡Bienvenido! 🚀', 'Soy Buddy, tu compañero de estudio. ¿Listo para tu primera sesión? ✨'],
+        sleep:    ['Sin preocupaciones 😴', 'Cuando quieras retomar, aquí estaré esperándote.'],
+        excited:  ['¡Sesión completada! 🎉', 'Cada sesión terminada es un paso firme hacia tu mejor versión. ¡Grandioso trabajo!'],
+        tired:    ['Momento de recargar 🧘', 'Una pausa no es rendirse, es prepararse para volver más fuerte. Te espero 💜'],
+    };
+
+    const moodTitle = document.getElementById('moodTitle');
+    const moodText  = document.getElementById('moodText');
+    const petTitle  = document.getElementById('petTitle');
+    const petText   = document.getElementById('petMessageText');
+
+    if(moodMessages[mood]){
+        if(moodTitle) moodTitle.textContent = moodMessages[mood][0];
+        if(moodText)  moodText.textContent  = moodMessages[mood][1];
+    }
+
+    if(bubbleMessages[mood]){
+        if(petTitle) petTitle.textContent = bubbleMessages[mood][0];
+        if(petText)  petText.textContent  = bubbleMessages[mood][1];
     }
 
 }
@@ -1970,6 +2401,13 @@ function startPomodoro(){
                 Completado
             `;
 
+            /* NOTIFICATION */
+
+            sendNotification(
+                '¡Sesión completada! 🎉',
+                `${currentMode} minutos de enfoque. ¡Sigue así!`
+            );
+
             /* ALERT */
 
             showToast(
@@ -2088,6 +2526,68 @@ async function loadStatsFromBackend(){
 
         loadStats();
 
+        const streakCount =
+            document.getElementById('streakCount');
+
+        if(streakCount){
+
+            const days = stats.current_streak;
+
+            streakCount.textContent =
+                `${days} ${days === 1 ? 'día' : 'días'}`;
+
+        }
+
+        const streakMessage =
+            document.getElementById('streakMessage');
+
+        if(streakMessage){
+
+            const s = stats.current_streak;
+
+            if(s === 0){
+
+                streakMessage.textContent =
+                    'Completa tu primera sesión 🔥';
+
+            } else if(s < 3){
+
+                streakMessage.textContent =
+                    'Buen inicio, sigue así 💪';
+
+            } else if(s < 7){
+
+                streakMessage.textContent =
+                    '¡Vas genial! 🔥';
+
+            } else {
+
+                streakMessage.textContent =
+                    `¡${s} días de racha, imparable! 🚀`;
+
+            }
+
+        }
+
+        /* BUDDY MOOD BASED ON STREAK */
+
+        const total = stats.total_sessions;
+        const streak = stats.current_streak;
+
+        if(total === 0){
+
+            setBuddyMood('greeting');
+
+        } else if(streak === 0){
+
+            setBuddyMood('sad');
+
+        } else {
+
+            setBuddyMood('happy');
+
+        }
+
     }
 
     catch(error){
@@ -2095,6 +2595,116 @@ async function loadStatsFromBackend(){
         console.warn('No se pudieron cargar stats del backend:', error);
 
     }
+
+    /* FETCH SESSIONS FOR CHART */
+
+    try{
+
+        const sRes =
+            await fetch(`${API_URL}/sessions`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(sRes.ok){
+
+            const sessions =
+                await sRes.json();
+
+            updateProductivityChart(sessions);
+
+        }
+
+    }
+
+    catch(e){
+
+        console.warn('No se pudieron cargar sesiones para chart:', e);
+
+    }
+
+}
+
+/* =========================
+   UPDATE PRODUCTIVITY CHART
+========================= */
+
+function updateProductivityChart(sessions){
+
+    if(!studyChart) return;
+
+    let focusMinutes = 0;
+    let breakMinutes = 0;
+
+    sessions.forEach(s => {
+        if(s.mode === 'pomodoro'){
+            focusMinutes += s.duration_minutes;
+        } else {
+            breakMinutes += s.duration_minutes;
+        }
+    });
+
+    const totalMinutes = focusMinutes + breakMinutes || 1;
+    const focusPct = Math.round((focusMinutes / totalMinutes) * 100);
+
+    studyChart.data.datasets[0].data = [
+        focusPct,
+        Math.round((breakMinutes / totalMinutes) * 100),
+        0,
+        0,
+    ];
+
+    studyChart.update();
+
+    /* PRODUCTIVITY SCORE */
+
+    const scoreEl =
+        document.querySelector('.productivity-score strong');
+
+    if(scoreEl){
+        scoreEl.textContent = `${focusPct}%`;
+    }
+
+    /* PROGRESS BARS */
+
+    const progressItems =
+        document.querySelectorAll('.progress-item');
+
+    const categories = [
+        { label: 'Enfoque', minutes: focusMinutes },
+        { label: 'Descansos', minutes: breakMinutes },
+        { label: 'Estudio ligero', minutes: 0 },
+        { label: 'Distracciones', minutes: 0 },
+    ];
+
+    categories.forEach((cat, i) => {
+
+        const item = progressItems[i];
+        if(!item) return;
+
+        const timeSpan =
+            item.querySelector('.progress-info span:last-child');
+
+        if(timeSpan){
+            const h = Math.floor(cat.minutes / 60);
+            const m = cat.minutes % 60;
+            timeSpan.textContent =
+                h > 0
+                    ? `${h}h ${m}m`
+                    : `${m}m`;
+        }
+
+        const fill =
+            item.querySelector('.progress-fill');
+
+        if(fill){
+            const pct =
+                totalMinutes > 0
+                    ? Math.round((cat.minutes / totalMinutes) * 100)
+                    : 0;
+            fill.style.width = `${Math.max(pct, 0)}%`;
+        }
+
+    });
 
 }
 
@@ -2314,6 +2924,12 @@ function setActiveSection(sectionId){
 
     }
 
+    if(sectionId === 'sessions'){
+
+        renderSessions();
+
+    }
+
 }
 
 menuLinks.forEach(link => {
@@ -2421,8 +3037,8 @@ function createTaskElement(task){
                 ${task.priority}
             </span>
             <small>${task.duration_minutes} min</small>
-            <button class="task-menu" title="Más opciones">
-                <i class="ri-more-2-fill"></i>
+            <button class="task-menu" title="Eliminar tarea">
+                <i class="ri-delete-bin-line"></i>
             </button>
         </div>
     `;
@@ -2438,11 +3054,34 @@ function createTaskElement(task){
 
     });
 
+    const menuButton =
+        taskElement.querySelector('.task-menu');
+
+    if(menuButton){
+
+        menuButton.addEventListener('click', (e) => {
+
+            e.stopPropagation();
+
+            deleteTask(task.id);
+
+        });
+
+    }
+
     return taskElement;
 
 }
 
 async function fetchTasks(){
+
+    /* SHOW SKELETONS */
+
+    const skeletonHtml =
+        Array(3).fill('<div class="skeleton skeleton-task"></div>').join('');
+
+    if(todayTaskList) todayTaskList.innerHTML = skeletonHtml;
+    if(allTaskList) allTaskList.innerHTML = skeletonHtml;
 
     try{
 
@@ -2543,6 +3182,71 @@ async function updateTask(taskId, payload){
 
 }
 
+async function deleteTask(taskId){
+
+    const task =
+        tasks.find(t => t.id === Number(taskId));
+
+    if(!task) return;
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+
+        if(response.ok){
+
+            showUndoToast('Tarea eliminada', async () => {
+
+                try{
+
+                    await fetch(`${API_URL}/tasks`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            title: task.title,
+                            due_date: task.due_date,
+                            priority: task.priority,
+                            duration_minutes: task.duration_minutes,
+                            completed: task.completed,
+                        }),
+                    });
+
+                    showToast('Tarea restaurada', 'success');
+
+                    await fetchTasks();
+
+                }
+
+                catch(err){
+
+                    showToast('No se pudo restaurar la tarea', 'error');
+
+                }
+
+            });
+
+            await fetchTasks();
+
+        } else {
+
+            showToast('Error al eliminar la tarea', 'error');
+
+        }
+
+    }
+
+    catch(error){
+
+        showToast('Error de conexión al eliminar', 'error');
+
+    }
+
+}
+
 function renderTaskList(container, taskItems){
 
     if(!container) return;
@@ -2561,16 +3265,16 @@ function renderTaskList(container, taskItems){
 
 function renderTodayTasks(){
 
-    const todayTasks =
-        tasks.filter(task => task.due_date === formatDate(today));
+    const pendingTasks =
+        tasks.filter(task => !task.completed);
 
     renderTaskList(
         todayTaskList,
-        todayTasks.slice(0, 4)
+        pendingTasks.slice(0, 5)
     );
 
     const pendingCount =
-        todayTasks.filter(task => !task.completed).length;
+        pendingTasks.length;
 
     const todayCounter =
         document.querySelector('.tasks-title span');
@@ -2581,6 +3285,8 @@ function renderTodayTasks(){
             `${pendingCount} pendientes`;
 
     }
+
+    updateBadgeCount();
 
 }
 
@@ -2597,6 +3303,8 @@ function renderAllTasks(){
             `${tasks.length} tareas registradas • ${pending} pendientes`;
 
     }
+
+    updateBadgeCount();
 
 }
 
@@ -2626,6 +3334,121 @@ function renderSelectedDayTasks(dateString){
         selectedDayTasks,
         getTasksByDate(dateString)
     );
+
+}
+
+/* =========================
+   RENDER SESSIONS
+========================= */
+
+async function renderSessions(){
+
+    const list =
+        document.getElementById('sessionsList');
+
+    if(!list) return;
+
+    try{
+
+        const response =
+            await fetch(`${API_URL}/sessions`, {
+                headers: getAuthHeaders(),
+            });
+
+        if(!response.ok) throw new Error();
+
+        const sessions = await response.json();
+
+        if(!sessions.length){
+
+            list.innerHTML = `
+                <div class="sessions-empty">
+                    <i class="ri-timer-flash-line"></i>
+                    <p>No hay sesiones registradas aún. Completa un Pomodoro para ver tu historial aquí.</p>
+                </div>
+            `;
+            return;
+
+        }
+
+        list.innerHTML = '';
+
+        sessions.forEach(s => {
+
+            const date = new Date(s.created_at + 'Z');
+
+            const dateStr =
+                date.toLocaleDateString('es-CO', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                });
+
+            const timeStr =
+                date.toLocaleTimeString('es-CO', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+
+            const modeLabel =
+                s.mode === 'pomodoro' ? 'Enfoque'
+                    : s.mode === 'long-break' ? 'Descanso largo'
+                    : 'Descanso';
+
+            const modeClass =
+                s.mode === 'pomodoro' ? 'pomodoro'
+                    : s.mode === 'long-break' ? 'long-break'
+                    : 'break';
+
+            const row =
+                document.createElement('div');
+
+            row.className = 'session-row';
+
+            row.innerHTML = `
+                <span class="session-date">${dateStr} · ${timeStr}</span>
+                <span class="session-duration">${s.duration_minutes} min</span>
+                <span class="session-mode ${modeClass}">${modeLabel}</span>
+                <i class="ri-checkbox-circle-fill" style="color:#4cff88;font-size:18px;"></i>
+            `;
+
+            list.appendChild(row);
+
+        });
+
+    }
+
+    catch(error){
+
+        list.innerHTML = `
+            <div class="sessions-empty">
+                <i class="ri-cloud-off-line"></i>
+                <p>No se pudieron cargar las sesiones. Verifica conexión con el backend.</p>
+            </div>
+        `;
+
+    }
+
+}
+
+/* =========================
+   UPDATE BADGE COUNT
+========================= */
+
+function updateBadgeCount(){
+
+    const badge =
+        document.getElementById('taskBadge');
+
+    if(!badge) return;
+
+    const pending =
+        tasks.filter(t => !t.completed).length;
+
+    badge.textContent = pending;
+
+    badge.style.display =
+        pending > 0 ? '' : 'none';
 
 }
 
@@ -2722,6 +3545,19 @@ if(taskForm){
 
         if(!title) return;
 
+        const submitBtn =
+            taskForm.querySelector('.task-submit');
+
+        const originalText =
+            submitBtn.innerHTML;
+
+        submitBtn.disabled = true;
+
+        submitBtn.innerHTML = `
+            <i class="ri-loader-4-line"></i>
+            Creando...
+        `;
+
         try{
 
             await createTask({
@@ -2736,9 +3572,17 @@ if(taskForm){
 
             document.getElementById('taskDuration').value = 30;
 
+            submitBtn.disabled = false;
+
+            submitBtn.innerHTML = originalText;
+
         }
 
         catch(error){
+
+            submitBtn.disabled = false;
+
+            submitBtn.innerHTML = originalText;
 
             showToast(
                 'No se pudo crear la tarea. ¿El backend está activo?',
@@ -2796,27 +3640,29 @@ if(nextMonthBtn){
 const chartCanvas =
     document.getElementById('studyChart');
 
+let studyChart = null;
+
 if(chartCanvas && window.Chart){
 
     const ctxChart =
         chartCanvas.getContext('2d');
 
-    new Chart(ctxChart, {
+    studyChart = new Chart(ctxChart, {
 
         type: 'doughnut',
 
         data: {
 
             labels: [
-                'Enfoque profundo',
-                'Estudio ligero',
+                'Enfoque',
                 'Descansos',
+                'Estudio ligero',
                 'Distracciones'
             ],
 
             datasets: [{
 
-                data: [60, 23, 11, 6],
+                data: [0, 0, 0, 0],
 
                 backgroundColor: [
                     '#50e486',
@@ -2880,6 +3726,9 @@ function loadUserInSidebar(){
 
         const userData = JSON.parse(stored);
 
+        const name =
+            userData.email.split('@')[0] || userData.email;
+
         const nameElement =
             document.querySelector('.user-info h3');
 
@@ -2888,14 +3737,22 @@ function loadUserInSidebar(){
 
         if(nameElement){
 
-            nameElement.textContent =
-                userData.email.split('@')[0] || userData.email;
+            nameElement.textContent = name;
 
         }
 
         if(roleElement){
 
             roleElement.textContent = userData.email;
+
+        }
+
+        const greetingName =
+            document.getElementById('greetingName');
+
+        if(greetingName){
+
+            greetingName.textContent = name.charAt(0).toUpperCase() + name.slice(1);
 
         }
 
@@ -2910,6 +3767,79 @@ function loadUserInSidebar(){
 }
 
 /* =========================
+   NOTIFICATION API
+========================= */
+
+function sendNotification(title, body){
+
+    if(!('Notification' in window)) return;
+
+    if(Notification.permission === 'granted'){
+
+        new Notification(title, {
+            body,
+            icon: 'assets/imagenes/logo.png',
+        });
+
+    } else if(Notification.permission !== 'denied'){
+
+        Notification.requestPermission();
+
+    }
+
+}
+
+/* =========================
+   KEYBOARD SHORTCUT (SPACE)
+========================= */
+
+document.addEventListener('keydown', (e) => {
+
+    if(e.target.tagName === 'INPUT' ||
+       e.target.tagName === 'TEXTAREA' ||
+       e.target.tagName === 'SELECT') return;
+
+    if(e.key === ' ' || e.code === 'Space'){
+
+        e.preventDefault();
+
+        if(timerRunning){
+
+            pausePomodoro();
+
+        } else {
+
+            const btnText =
+                startButton.textContent.trim();
+
+            if(btnText === 'Iniciar sesión' ||
+               btnText === 'Continuar'){
+
+                startPomodoro();
+
+            }
+
+        }
+
+    }
+
+});
+
+/* =========================
+   PAUSE ON TAB HIDDEN
+========================= */
+
+document.addEventListener('visibilitychange', () => {
+
+    if(document.hidden && timerRunning){
+
+        pausePomodoro();
+
+    }
+
+});
+
+/* =========================
    INITIALIZE
 ========================= */
 
@@ -2917,363 +3847,13 @@ updateTimer();
 
 loadStats();
 
+setBuddyMood('greeting');
+
 loadStatsFromBackend();
 
 loadUserInSidebar();
 
 fetchTasks();
-</file>
-
-<file path="frontend/index.html">
-<!DOCTYPE html>
-<html lang="es">
-<head>
- <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <meta charset="UTF-8">
-    <title>StudyBuddy</title>
-    <link rel="stylesheet" href="splash.css">
-</head>
-
-<body>
-
-    <canvas id="particles"></canvas>
-    
-<div class="splash-container">
-
-    <img src="assets/imagenes/logo.png" class="logo" alt="Logo">
-
-    <h1 class="title">StudyBuddy</h1>
-    <p class="subtitle"> Sistema inteligente de productividad para estudiantes</p>
-    
-     <!-- IMAGEN CENTRAL -->
-    <img src="assets/imagenes/splash.png" class="mascot">
-
-    <p class="loading-text">
-        Cargando tu espacio de estudio...</p>
-
-    <div class="loader">
-        <div class="progress"></div>
-    </div>
-
-</div>
-
-<script src="splash.js"></script>
-</body>
-</html>
-</file>
-
-<file path="backend/main.py">
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from passlib.context import CryptContext
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text
-from datetime import datetime, timezone
-import os
-
-from .database import SessionLocal, engine, Base
-from .models import Task, User, Session as SessionModel
-from .schemas import (
-    TaskCreate, TaskUpdate, TaskResponse,
-    UserCreate, UserLogin, UserResponse,
-    Token, SessionCreate, SessionResponse,
-    StatsResponse,
-)
-from .auth import create_access_token, get_current_user
-
-app = FastAPI()
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password: str):
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-Base.metadata.create_all(bind=engine)
-
-def ensure_missing_columns():
-    inspector = inspect(engine)
-    tables_info = {
-        "tasks": {
-            "due_date": "VARCHAR",
-            "priority": "VARCHAR DEFAULT 'media'",
-            "duration_minutes": "INTEGER DEFAULT 30",
-            "completed": "BOOLEAN DEFAULT FALSE",
-            "user_id": "INTEGER REFERENCES users(id)",
-        },
-        "sessions": {
-            "user_id": "INTEGER REFERENCES users(id)",
-            "duration_minutes": "INTEGER DEFAULT 25",
-            "mode": "VARCHAR DEFAULT 'pomodoro'",
-            "created_at": "VARCHAR",
-        },
-    }
-
-    with engine.begin() as connection:
-        for table_name, columns in tables_info.items():
-            if table_name not in inspector.get_table_names():
-                continue
-            existing = {c["name"] for c in inspector.get_columns(table_name)}
-            for col_name, definition in columns.items():
-                if col_name not in existing:
-                    connection.execute(
-                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
-                    )
-
-ensure_missing_columns()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-def home():
-    return RedirectResponse(url="/frontend/index.html")
-
-
-@app.post("/register")
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user.email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Usuario ya existe")
-
-    new_user = User(email=user.email, password=hash_password(user.password))
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return {"message": "Usuario creado"}
-
-
-@app.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Usuario no existe")
-
-    if not verify_password(user.password, db_user.password):
-        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
-
-    token = create_access_token({"user_id": db_user.id})
-
-    return Token(
-        access_token=token,
-        user=UserResponse(id=db_user.id, email=db_user.email),
-    )
-
-
-@app.get("/tasks", response_model=list[TaskResponse])
-def get_tasks(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
-    return tasks
-
-
-@app.post("/tasks", response_model=TaskResponse)
-def create_task(
-    task: TaskCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    new_task = Task(
-        title=task.title,
-        due_date=task.due_date,
-        priority=task.priority,
-        duration_minutes=task.duration_minutes,
-        completed=task.completed,
-        user_id=current_user.id,
-    )
-    db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
-    return new_task
-
-
-@app.get("/tasks/{task_id}", response_model=TaskResponse)
-def get_task(
-    task_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    task = db.query(Task).filter(
-        Task.id == task_id,
-        Task.user_id == current_user.id,
-    ).first()
-
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-    return task
-
-
-@app.put("/tasks/{task_id}", response_model=TaskResponse)
-def update_task(
-    task_id: int,
-    updated_task: TaskUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    task = db.query(Task).filter(
-        Task.id == task_id,
-        Task.user_id == current_user.id,
-    ).first()
-
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-    update_data = updated_task.model_dump(exclude_unset=True)
-
-    for field, value in update_data.items():
-        setattr(task, field, value)
-
-    db.commit()
-    db.refresh(task)
-    return task
-
-
-@app.delete("/tasks/{task_id}")
-def delete_task(
-    task_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    task = db.query(Task).filter(
-        Task.id == task_id,
-        Task.user_id == current_user.id,
-    ).first()
-
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-    db.delete(task)
-    db.commit()
-
-    return {"message": "Tarea eliminada"}
-
-
-@app.post("/sessions", response_model=SessionResponse)
-def create_session(
-    session: SessionCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    now = datetime.now(timezone.utc).isoformat()
-
-    new_session = SessionModel(
-        user_id=current_user.id,
-        duration_minutes=session.duration_minutes,
-        mode=session.mode,
-        created_at=now,
-    )
-    db.add(new_session)
-    db.commit()
-    db.refresh(new_session)
-    return new_session
-
-
-@app.get("/sessions", response_model=list[SessionResponse])
-def get_sessions(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    sessions = (
-        db.query(SessionModel)
-        .filter(SessionModel.user_id == current_user.id)
-        .order_by(SessionModel.id.desc())
-        .limit(50)
-        .all()
-    )
-    return sessions
-
-
-@app.get("/stats", response_model=StatsResponse)
-def get_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    sessions = (
-        db.query(SessionModel)
-        .filter(SessionModel.user_id == current_user.id)
-        .all()
-    )
-
-    total_sessions = len(sessions)
-    total_minutes = sum(s.duration_minutes for s in sessions)
-
-    streak = calculate_streak(sessions)
-
-    xp = total_sessions * 50
-    level = (xp // 350) + 1
-
-    return StatsResponse(
-        total_sessions=total_sessions,
-        total_minutes=total_minutes,
-        current_streak=streak,
-        xp=xp,
-        level=level,
-    )
-
-
-def calculate_streak(sessions: list) -> int:
-    if not sessions:
-        return 0
-
-    dates = set()
-    for s in sessions:
-        if s.created_at:
-            day = s.created_at[:10]
-            dates.add(day)
-
-    if not dates:
-        return 0
-
-    sorted_dates = sorted(dates, reverse=True)
-    streak = 1
-
-    from datetime import date, timedelta
-
-    today = date.today()
-
-    if sorted_dates[0] < today.isoformat():
-        last = date.fromisoformat(sorted_dates[0])
-        if (today - last).days > 1:
-            return 0
-
-    for i in range(len(sorted_dates) - 1):
-        current = date.fromisoformat(sorted_dates[i])
-        previous = date.fromisoformat(sorted_dates[i + 1])
-        if (current - previous).days == 1:
-            streak += 1
-        else:
-            break
-
-    return streak
 </file>
 
 <file path="frontend/dashboard.css">
@@ -3319,6 +3899,22 @@ body{
     backdrop-filter:blur(20px);
     transition:0.35s ease;
     flex-shrink:0;
+    min-height:0;
+    overflow-y:auto;
+}
+
+.sidebar::-webkit-scrollbar{
+    width:4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+    background:#7c5cff;
+    border-radius:999px;
+}
+
+.sidebar > div:first-child{
+    flex:1;
+    min-height:0;
 }
 
 /* COLLAPSED */
@@ -3447,6 +4043,7 @@ body{
     border-radius:24px;
     overflow:hidden;
     margin-top:30px;
+    flex-shrink:0;
 }
 
 .user-panel img{
@@ -3576,7 +4173,7 @@ body{
 
 .dashboard-grid{
     display:grid;
-    grid-template-columns:repeat(6, 1fr);
+    grid-template-columns:repeat(12, 1fr);
     gap:25px;
     align-items:start;
     grid-auto-rows:min-content;
@@ -3589,23 +4186,23 @@ body{
 
 /* DISTRIBUCIÓN DE CARDS */
 .focus-card{
-    grid-column:1 / span 4;
+    grid-column:1 / span 7;
     grid-row:1;
     height:fit-content;
 }
 
 .pet-card{
-    grid-column:5 / span 2;
+    grid-column:8 / span 5;
     grid-row:1;
 }
 
 .tasks-card{
-    grid-column:1 / span 3;
+    grid-column:1 / span 6;
     grid-row:2;
 }
 
 .productivity-card{
-    grid-column:4 / span 3;
+    grid-column:7 / span 6;
     grid-row:2;
 }
 /* =========================
@@ -4198,6 +4795,7 @@ button:hover{
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+    min-width:0;
 }
 
 .task-icon{
@@ -4242,11 +4840,17 @@ button:hover{
     border:none;
     border-radius:8px;
     background:transparent;
-    color:#9fa5d1;
+    color:#ef4444;
     cursor:pointer;
     display:flex;
     align-items:center;
     justify-content:center;
+    transition:0.25s ease;
+}
+
+.task-menu:hover{
+    color:#ff6b6b;
+    background:rgba(255,107,107,0.12);
 }
 
 .task.completed .task-left > span{
@@ -4342,6 +4946,7 @@ button:hover{
     position:relative;
     overflow:hidden;
     min-width:0;
+    min-height:430px;
 }
 
 .pet-card::before{
@@ -4386,7 +4991,7 @@ button:hover{
     height:10px;
     background:#1b204b;
     border-radius:999px;
-    margin:16px 0 28px;
+    margin:16px 0 16px;
     overflow:hidden;
 }
 
@@ -4403,50 +5008,61 @@ button:hover{
     position:relative;
     z-index:1;
     display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(135px,0.82fr);
+    grid-template-columns:minmax(0,1fr) minmax(130px,0.9fr);
     align-items:center;
-    gap:18px;
+    gap:16px;
     min-width:0;
 }
 
 .pet-message{
     position:relative;
+    z-index:2;
+    width:100%;
     background:linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03));
     border:1px solid rgba(255,255,255,0.06);
-    padding:22px;
-    border-radius:22px;
-    max-width:none;
+    padding:20px 22px;
+    border-radius:18px;
+    max-width:280px;
     min-width:0;
     box-shadow:0 18px 40px rgba(0,0,0,0.18);
+    overflow-wrap:break-word;
+    word-break:normal;
 }
 
 .pet-message::after{
     content:"";
     position:absolute;
-    top:38px;
-    right:-12px;
-    width:24px;
-    height:24px;
+    right:-9px;
+    top:46px;
+    width:18px;
+    height:18px;
     background:rgba(255,255,255,0.055);
-    transform:rotate(45deg);
     border-top:1px solid rgba(255,255,255,0.06);
     border-right:1px solid rgba(255,255,255,0.06);
+    transform:rotate(45deg);
 }
 
 .pet-message p{
     margin-top:10px;
     line-height:1.7;
     color:#b8bcde;
+    overflow-wrap:break-word;
+    word-break:normal;
+}
+
+.pet-message h3{
+    overflow-wrap:break-word;
+    word-break:normal;
 }
 
 .pet-mascot-slot{
     position:relative;
-    width:100%;
+    width:auto;
     min-width:0;
-    min-height:clamp(170px,16vw,220px);
+    min-height:clamp(230px,22vw,310px);
     display:flex;
     align-items:center;
-    justify-content:center;
+    justify-content:flex-end;
     flex-shrink:0;
     overflow:visible;
 }
@@ -4498,8 +5114,10 @@ button:hover{
 }
 
 .pet-content img.pet-mascot-img{
-    width:min(100%,220px);
-    max-height:220px;
+    width:auto;
+    height:auto;
+    max-width:100%;
+    max-height:clamp(250px,24vw,360px);
     object-fit:contain;
     animation:floatPet 4s ease-in-out infinite;
 }
@@ -4525,7 +5143,7 @@ button:hover{
 .mood-card{
     position:relative;
     z-index:1;
-    margin-top:20px;
+    margin-top:8px;
     display:flex;
     align-items:center;
     gap:15px;
@@ -4838,6 +5456,7 @@ button:hover{
     display:flex;
     flex-direction:column;
     gap:8px;
+    overflow:hidden;
 }
 
 .calendar-day:hover{
@@ -4898,6 +5517,13 @@ button:hover{
 .task-list.compact .task{
     flex-direction:column;
     align-items:flex-start;
+}
+
+.calendar-day-panel .task-left > span{
+    white-space:normal;
+    text-overflow:clip;
+    overflow-wrap:break-word;
+    word-break:break-word;
 }
 
 .insight-bars{
@@ -5138,7 +5764,28 @@ button:hover{
     }
 
     .pet-content{
+        grid-template-columns:minmax(220px,0.82fr) minmax(220px,1fr);
         justify-content:center;
+    }
+
+}
+
+@media(max-width:1050px) and (min-width:901px){
+
+    .pet-card{
+        min-height:auto;
+    }
+
+    .pet-message{
+        max-width:320px;
+    }
+
+    .pet-mascot-slot{
+        min-height:clamp(220px,28vw,300px);
+    }
+
+    .pet-content img.pet-mascot-img{
+        max-height:clamp(240px,30vw,340px);
     }
 
 }
@@ -5163,15 +5810,22 @@ button:hover{
 
     .pet-content{
         grid-template-columns:1fr;
+        align-items:center;
         text-align:center;
-        justify-items:center;
+    }
+
+    .pet-message{
+        max-width:100%;
+    }
+
+    .pet-mascot-slot{
+        width:100%;
+        min-height:clamp(160px,48vw,250px);
+        justify-content:center;
     }
 
     .pet-message::after{
-        top:auto;
-        right:50%;
-        bottom:-12px;
-        transform:translateX(50%) rotate(45deg);
+        display:none;
     }
 
     .productivity-overview{
@@ -5346,6 +6000,180 @@ img{
         transform:translateX(40px) scale(0.92);
     }
 }
+
+/* =========================
+   SKELETON LOADING
+========================= */
+
+.skeleton{
+    background:linear-gradient(
+        90deg,
+        rgba(255,255,255,0.03) 25%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.03) 75%
+    );
+    background-size:200% 100%;
+    animation:skeleton-loading 1.5s ease infinite;
+    border-radius:10px;
+}
+
+@keyframes skeleton-loading{
+    0%{background-position:200% 0;}
+    100%{background-position:-200% 0;}
+}
+
+.skeleton-task{
+    height:52px;
+    margin-bottom:10px;
+}
+
+/* =========================
+   SIDEBAR COLLAPSED TOOLTIPS
+========================= */
+
+.sidebar.collapsed .menu a{
+    position:relative;
+}
+
+.sidebar.collapsed .menu a:hover::after{
+    content:attr(data-tip);
+    position:fixed;
+    left:85px;
+    background:rgba(16,19,46,0.96);
+    color:white;
+    padding:8px 14px;
+    border-radius:12px;
+    font-size:13px;
+    white-space:nowrap;
+    z-index:1000;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+    pointer-events:none;
+}
+
+/* =========================
+   MENU BADGE
+========================= */
+
+.menu-badge{
+    margin-left:auto;
+    background:#7c5cff;
+    color:white;
+    font-size:11px;
+    font-weight:700;
+    padding:2px 9px;
+    border-radius:999px;
+    min-width:20px;
+    text-align:center;
+    line-height:1.6;
+}
+
+.sidebar.collapsed .menu-badge{
+    display:none;
+}
+
+/* =========================
+   SESSIONS TABLE
+========================= */
+
+.sessions-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:20px;
+}
+
+.session-row{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr auto;
+    align-items:center;
+    gap:16px;
+    background:rgba(13,18,45,0.68);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:14px 18px;
+    border-radius:14px;
+    transition:0.25s ease;
+}
+
+.session-row:hover{
+    background:rgba(18,24,58,0.88);
+    border-color:rgba(124,92,255,0.22);
+}
+
+.session-date{
+    color:#cfd2ec;
+    font-size:14px;
+}
+
+.session-duration{
+    color:#5cff9b;
+    font-weight:600;
+    font-size:14px;
+}
+
+.session-mode{
+    padding:4px 12px;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:600;
+    text-align:center;
+}
+
+.session-mode.pomodoro{
+    background:rgba(124,92,255,0.2);
+    color:#b47cff;
+}
+
+.session-mode.break{
+    background:rgba(255,184,77,0.2);
+    color:#ffb84d;
+}
+
+.session-mode.long-break{
+    background:rgba(92,255,155,0.2);
+    color:#5cff9b;
+}
+
+.sessions-empty{
+    text-align:center;
+    padding:40px 20px;
+    color:#9ea4cf;
+}
+
+.sessions-empty i{
+    font-size:48px;
+    color:#7c5cff;
+    opacity:0.5;
+    margin-bottom:16px;
+    display:block;
+}
+
+/* =========================
+   TOAST UNDO BUTTON
+========================= */
+
+.toast-undo{
+    background:rgba(124,92,255,0.2);
+    border:1px solid rgba(124,92,255,0.3);
+    color:#b47cff;
+    padding:6px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+    margin-left:10px;
+    flex-shrink:0;
+    transition:0.2s;
+}
+
+.toast-undo:hover{
+    background:rgba(124,92,255,0.35);
+    transform:translateY(-1px);
+}
+
+.toast.has-undo{
+    padding-right:14px;
+}
 </file>
 
 <file path="frontend/dashboard.html">
@@ -5415,49 +6243,50 @@ img{
                 <!-- MENU -->
                 <nav class="menu">
 
-                    <a href="#" class="active" data-section="home">
+                    <a href="#" class="active" data-section="home" data-tip="Inicio">
 
                         <i class="ri-home-5-fill"></i>
                         <span>Inicio</span>
 
                     </a>
 
-                    <a href="#" data-section="tasks">
+                    <a href="#" data-section="tasks" data-tip="Tareas">
 
                         <i class="ri-task-line"></i>
                         <span>Tareas</span>
+                        <span class="menu-badge" id="taskBadge">0</span>
 
                     </a>
 
-                    <a href="#" data-section="sessions">
+                    <a href="#" data-section="sessions" data-tip="Sesiones">
 
                         <i class="ri-timer-flash-line"></i>
                         <span>Sesiones</span>
 
                     </a>
 
-                    <a href="#" data-section="analytics">
+                    <a href="#" data-section="analytics" data-tip="Análisis">
 
                         <i class="ri-bar-chart-box-line"></i>
                         <span>Análisis</span>
 
                     </a>
 
-                    <a href="#" data-section="calendar">
+                    <a href="#" data-section="calendar" data-tip="Calendario">
 
                         <i class="ri-calendar-line"></i>
                         <span>Calendario</span>
 
                     </a>
 
-                    <a href="#" data-section="achievements">
+                    <a href="#" data-section="achievements" data-tip="Logros">
 
                         <i class="ri-medal-line"></i>
                         <span>Logros</span>
 
                     </a>
 
-                    <a href="#" data-section="settings">
+                    <a href="#" data-section="settings" data-tip="Ajustes">
 
                         <i class="ri-settings-3-line"></i>
                         <span>Ajustes</span>
@@ -5500,7 +6329,7 @@ img{
 
                 <div class="welcome">
 
-                    <h1>Hola, Carlos 👋</h1>
+                    <h1>Hola, <span id="greetingName">Carlos</span> 👋</h1>
                     <p>Construyamos una sesión increíble hoy.</p>
 
                 </div>
@@ -5518,8 +6347,8 @@ img{
                             <div>
 
                                 <span>Racha actual</span>
-                                <strong>12 días</strong>
-                                <small>¡Vas genial! 🔥</small>
+                                <strong id="streakCount">0 días</strong>
+                                <small id="streakMessage">Completa tu primera sesión 🔥</small>
 
                             </div>
 
@@ -5812,7 +6641,7 @@ img{
                                 ¡Estoy orgulloso de ti! 💜
                             </h3>
 
-                            <p>
+                            <p id="petMessageText">
                                 Cada minuto de enfoque
                                 te acerca más a tus metas.
                             </p>
@@ -5851,8 +6680,8 @@ img{
 
                         <div>
 
-                            <h4>Feliz</h4>
-                            <p>Tu racha me hace muy feliz</p>
+                            <h4 id="moodTitle">Feliz</h4>
+                            <p id="moodText">Tu racha me hace muy feliz</p>
 
                         </div>
 
@@ -5867,7 +6696,7 @@ img{
 
                         <div class="tasks-title">
 
-                            <h2>Tareas de hoy</h2>
+                            <h2>Tareas pendientes</h2>
                             <span>3 pendientes</span>
 
                         </div>
@@ -6209,9 +7038,15 @@ img{
 
             <section class="dashboard-section" id="section-sessions">
 
-                <div class="card placeholder-section-card">
+                <div class="card">
                     <h2>Sesiones</h2>
-                    <p>La sesión Pomodoro principal se mantiene en Inicio. Esta sección queda preparada para historial y configuración de sesiones.</p>
+                    <p style="color:#9ea4cf;font-size:14px;margin-top:4px;">Historial de tus sesiones de enfoque y descanso</p>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="sessions-empty">
+                            <i class="ri-timer-flash-line"></i>
+                            <p style="color:#9ea4cf;">No hay sesiones registradas aún. Completa un Pomodoro para ver tu historial aquí.</p>
+                        </div>
+                    </div>
                 </div>
 
             </section>

@@ -1,190 +1,159 @@
- #📚 StudyBuddy (Sistema inteligente de productividad y enfoque para estudiantes)
+# StudyBuddy
 
-##📖 Descripción del proyecto
+Sistema inteligente de productividad y enfoque para estudiantes, con gamificación y mascota virtual.
 
-El presente Sistema es el desarrollo de una aplicación
-web llamada StudyBuddy, la cual busca no solo apoyar la organización de tareas, sino también analizar el comportamiento del usuario durante sus sesiones de estudio. El sistema permitirá identificar patrones de productividad, medir el tiempo de estudio,trabajo desarrollo de actividades y proporcionar retroalimentación útil donde podrá ver su comportamiento de aprendizaje.
-Como valor agregado, la aplicación incorporará elementos de gamificación, como un sistema de rachas y una mascota virtual que interactúa con el usuario, con el objetivo de incentivar la constancia y generar una experiencia más dinámica y motivadora.
+## Funciones
 
-🚀 Descripción del proyecto
+| Función | Descripción |
+|---------|-------------|
+| **Tareas** | CRUD completo con prioridades (alta/media/baja), fechas, duración estimada y filtro por día |
+| **Pomodoro** | Temporizador de enfoque (25 min) y descanso (5 min) con barra de progreso animada |
+| **Sesiones** | Historial de sesiones completadas almacenado en backend |
+| **Estadísticas** | Total de sesiones, horas, racha actual, XP y nivel |
+| **Calendario** | Vista mensual con navegación y tareas marcadas por día |
+| **Mascota Buddy** | Compañero virtual con 6 estados de ánimo según tu actividad (primera sesión, racha, pausa, etc.) |
+| **Gamificación** | Sistema de XP (50 por sesión), niveles (cada 350 XP) y racha de días consecutivos |
+| **Gráfico de productividad** | Dona de Chart.js con distribución enfoque/descanso |
+| **Autenticación** | Registro e inicio de sesión con JWT (24 h de expiración) |
 
-StudyBuddy permite a los usuarios:
+## Stack
 
-* Crear tareas
-* Visualizar tareas
-* Actualizar tareas
-* Eliminar tareas
+| Capa | Tecnología |
+|------|-----------|
+| Backend | Python 3.11+, FastAPI, SQLAlchemy, PostgreSQL |
+| Frontend | HTML, CSS, JavaScript vanilla (sin frameworks) |
+| Auth | JWT (python-jose) + bcrypt (passlib) |
+| Gráficos | Chart.js |
+| Iconos | Remix Icons |
 
-El sistema implementa una arquitectura cliente-servidor donde el frontend consume una API REST desarrollada con FastAPI.
+## Requisitos
 
+- Python 3.11 o superior
+- PostgreSQL
+- Navegador moderno
 
- 🧩 Arquitectura del proyecto
+## Inicio rápido
 
-El proyecto está dividido en dos componentes principales:
+1.  Clonar el repositorio:
 
-StudyBuddy/
-│
+    ```bash
+    git clone <URL>
+    cd studybuddy_agentes
+    ```
+
+2.  Crear y activar entorno virtual:
+
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+3.  Instalar dependencias:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  Configurar variables de entorno: copiar `.env.example` a `.env` y ajustar credenciales:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Variables requeridas en `.env`:
+
+    | Variable | Descripción |
+    |----------|-------------|
+    | `DATABASE_URL` | URL de conexión a PostgreSQL |
+    | `SECRET_KEY` | Clave secreta para firmar JWT |
+    | `CORS_ORIGINS` | Orígenes permitidos (separados por coma) |
+
+5.  Iniciar backend:
+
+    ```bash
+    fastapi dev backend/main.py
+    ```
+
+    Servidor en `http://localhost:8000`
+
+6.  Abrir frontend: navegar a `http://localhost:8000/frontend/index.html`
+
+## Arquitectura
+
+```
+studybuddy_agentes/
 ├── backend/
-│   ├── main.py        # Definición de endpoints
-│   ├── models.py      # Modelo de datos (Task)
-│   ├── database.py    # Conexión a PostgreSQL
-│
+│   ├── main.py        -- Endpoints de la API REST
+│   ├── models.py      -- Modelos SQLAlchemy (User, Task, Session)
+│   ├── schemas.py     -- Esquemas Pydantic con validaciones
+│   ├── auth.py        -- JWT, dependencia get_current_user
+│   └── database.py    -- Conexión a PostgreSQL, declarative Base
 ├── frontend/
-│   ├── index.html     # Interfaz de usuario
-│   ├── app.js         # Lógica de interacción
-│
-├── requirements.txt   # Dependencias del backend
+│   ├── index.html     -- Splash animado con partículas
+│   ├── splash.css     -- Estilos del splash
+│   ├── splash.js      -- Animación y redirección
+│   ├── login.html     -- Página de login/registro
+│   ├── login.css      -- Estilos del login
+│   ├── login.js       -- Lógica de autenticación
+│   ├── dashboard.html -- Panel principal con todas las vistas
+│   ├── dashboard.css  -- Estilos del dashboard
+│   ├── dashboard.js   -- Lógica del dashboard (Pomodoro, tareas, etc.)
+│   └── assets/        -- Imágenes, iconos, sonidos
+├── requirements.txt
+├── .env.example       -- Plantilla de variables de entorno
 └── README.md
-
-
- ⚙️ Tecnologías utilizadas
-
-* FastAPI
-* PostgreSQL
-* SQLAlchemy
-* JavaScript 
-* HTML / CSS
-
- 🗄️ Base de datos
-
-Se utiliza PostgreSQL como sistema de gestión de base de datos.
-
- 🔹 Configuración de conexión
-
-```python
-DATABASE_URL=postgresql://<usuario>:<password>@localhost:5432/studybuddy
-```
-La conexión a la base de datos se gestiona mediante variables de entorno (.env) para evitar exponer credenciales sensibles en el repositorio.
-
- 🔹 Modelo principal
-
-Entidad: **Task**
-
-* id (Integer, PK)
-* title (String)
-
----
-
- ▶️ Cómo ejecutar el proyecto
- 🔹 1. Clonar repositorio
-
-```bash
-git clone <URL_DEL_REPOSITORIO>
-cd StudyBuddy
 ```
 
-🔹 2. Crear entorno virtual
+## API
 
-```bash
-python -m venv .venv
-```
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| POST | `/register` | No | Crear usuario |
+| POST | `/login` | No | Iniciar sesión, devuelve JWT |
+| GET | `/tasks` | Bearer | Listar tareas del usuario |
+| POST | `/tasks` | Bearer | Crear tarea |
+| GET | `/tasks/{id}` | Bearer | Obtener tarea |
+| PUT | `/tasks/{id}` | Bearer | Actualizar tarea |
+| DELETE | `/tasks/{id}` | Bearer | Eliminar tarea |
+| POST | `/sessions` | Bearer | Guardar sesión completada |
+| GET | `/sessions` | Bearer | Historial de sesiones (últimas 50) |
+| GET | `/stats` | Bearer | Estadísticas: sesiones, minutos, racha, XP, nivel |
 
-🔹 3. Activar entorno
+## Flujo de autenticación
 
-**Linux / Mac**
+1.  `POST /register` con email y contraseña → cuenta creada
+2.  `POST /login` con mismas credenciales → devuelve `access_token` + datos del usuario
+3.  Guardar token en `localStorage`
+4.  Enviar token en header `Authorization: Bearer <token>` en cada request protegido
+5.  Token expira en 24 horas
 
-```bash
-source .venv/bin/activate
-```
+## Validaciones
 
-**Windows**
+| Campo | Regla |
+|-------|-------|
+| Email | Formato válido (EmailStr) |
+| Contraseña | 6-128 caracteres |
+| Prioridad | `alta`, `media` o `baja` |
+| Duración tarea | 5-480 minutos |
+| Duración sesión | 1-240 minutos |
 
-```bash
-.venv\Scripts\activate
-```
-🔹 4. Instalar dependencias
+## Estado actual
 
-```bash
-pip install -r requirements.txt
-```
+- Backend funcional con 11 endpoints, auth JWT, validaciones Pydantic
+- Dashboard con Pomodoro, tareas, calendario, sesiones, mascota, gráficos
+- Backend como fuente de verdad para estadísticas (XP, nivel, racha)
+- Vistas de Análisis, Logros y Ajustes completadas con datos reales
+- CORS configurable vía entorno
+- .env.example sin credenciales reales
 
- 🔹 5. Ejecutar backend
+## Pendientes conocidos
 
-```bash
-fastapi dev backend/main.py
-```
+- Migraciones de base de datos: reemplazar `ensure_missing_columns()` por Alembic
+- Pruebas automatizadas (backend y frontend)
+- Endpoint de preferencias de usuario para persistir ajustes en servidor
+- La racha se calcula sobre sesiones, no sobre actividad diaria login
+- El sidebar se oculta en mobile sin menú alternativo
 
-Servidor disponible en:
+## Autor
 
-👉 http://localhost:8000
-
----
- 🔌 Endpoints principales
-
-| Método | Ruta        | Descripción              |
-| ------ | ----------- | ------------------------ |
-| GET    | /tasks      | Obtener todas las tareas |
-| POST   | /tasks      | Crear una nueva tarea    |
-| GET    | /tasks/{id} | Obtener tarea por ID     |
-| PUT    | /tasks/{id} | Actualizar tarea         |
-| DELETE | /tasks/{id} | Eliminar tarea           |
-
----
- 🔁 Ejemplo de uso
-
-🔹 Crear tarea
-
-```json
-POST /tasks
-{
-  "title": "Estudiar álgebra"
-}
-```
-
- 🔹 Respuesta
-
-```json
-{
-  "message": "Tarea creada",
-  "task": {
-    "id": 1,
-    "title": "Estudiar álgebra"
-  }
-}
-```
-
- 🌐 Frontend
-
-El frontend se encuentra en la carpeta `/frontend` y permite:
-
-* Visualizar tareas
-* Crear nuevas tareas
-* Navegar entre vistas
-
-Para ejecutarlo:
-
-👉 Abrir `index.html` en el navegador
-o usar Live Server en VS Code
-
- 🔗 Integración
-
-El frontend consume el backend mediante peticiones HTTP usando `fetch`, permitiendo una integración completa entre:
-
-1. Interfaz de usuario
-2. API REST
-3. Base de datos
-
----
- ⚠️ Manejo de errores
-
-El sistema implementa manejo básico de errores:
-
-* 404 → Recurso no encontrado
-* Validación de datos en frontend
-* Respuestas controladas en backend
-
----
-
-📌 Estado del proyecto
-
-✔ Backend funcional
-✔ CRUD completo
-✔ Base de datos conectada
-✔ Frontend funcional
-✔ Integración end-to-end
-
----
-
-👨‍💻 Autor : CARLOS DAVID CHARFUELAN
-
-Proyecto desarrollado como parte de un trabajo académico.
+Carlos David Charfuelan

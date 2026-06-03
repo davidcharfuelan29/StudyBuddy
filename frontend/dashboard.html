@@ -82,7 +82,7 @@
                     <a href="#" data-section="sessions" data-tip="Sesiones">
 
                         <i class="ri-timer-flash-line"></i>
-                        <span>Sesiones</span>
+                        <span>Historial</span>
 
                     </a>
 
@@ -663,7 +663,7 @@
                         <div>
 
                             <h4>Insight de la semana</h4>
-                            <p>Estudias mejor por las noches. Tu pico de enfoque es entre 7PM - 11PM.</p>
+                            <p id="insightText">Completa tu primera sesión para generar insights.</p>
 
                         </div>
 
@@ -850,9 +850,36 @@
 
             <section class="dashboard-section" id="section-analytics">
 
-                <div class="card placeholder-section-card">
-                    <h2>Análisis</h2>
-                    <p>Tu vista de productividad ya está en Inicio. Aquí prepararemos métricas más profundas sin alterar el diseño actual.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Análisis</h2>
+                            <p>Resumen real de tu enfoque, tareas y progreso semanal.</p>
+                        </div>
+                    </div>
+
+                    <div class="insight-grid" id="analyticsGrid">
+                        <div class="insight-stat">
+                            <span>Sesiones</span>
+                            <strong id="analyticsSessions">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Horas estudiadas</span>
+                            <strong id="analyticsHours">0h</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Tareas pendientes</span>
+                            <strong id="analyticsPendingTasks">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Racha</span>
+                            <strong id="analyticsStreak">0 días</strong>
+                        </div>
+                    </div>
+
+                    <div class="insight-note" id="analyticsInsight">
+                        Completa una sesión para generar tus primeras métricas.
+                    </div>
                 </div>
 
             </section>
@@ -874,18 +901,66 @@
 
             <section class="dashboard-section" id="section-achievements">
 
-                <div class="card placeholder-section-card">
-                    <h2>Logros</h2>
-                    <p>Pronto podrás revisar insignias, rachas y progreso acumulado.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Logros</h2>
+                            <p>Insignias simples basadas en tu constancia y progreso.</p>
+                        </div>
+                    </div>
+
+                    <div class="achievement-grid">
+                        <div class="achievement-item" id="achievementFirstSession">
+                            <i class="ri-rocket-line"></i>
+                            <strong>Primer enfoque</strong>
+                            <span>Completa tu primera sesión.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementStreak">
+                            <i class="ri-fire-line"></i>
+                            <strong>Racha activa</strong>
+                            <span>Mantén al menos 3 días de racha.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementLevel">
+                            <i class="ri-vip-crown-line"></i>
+                            <strong>Nivel 2</strong>
+                            <span>Acumula suficiente XP para subir de nivel.</span>
+                        </div>
+                    </div>
                 </div>
 
             </section>
 
             <section class="dashboard-section" id="section-settings">
 
-                <div class="card placeholder-section-card">
-                    <h2>Ajustes</h2>
-                    <p>Espacio reservado para preferencias del dashboard y cuenta.</p>
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Ajustes</h2>
+                            <p>Preferencias ligeras guardadas en este navegador.</p>
+                        </div>
+                    </div>
+
+                    <form class="settings-form" id="settingsForm">
+                        <label>
+                            Nombre visible
+                            <input type="text" id="displayNameInput" maxlength="40" placeholder="Tu nombre">
+                        </label>
+
+                        <label>
+                            Duración Pomodoro
+                            <input type="number" id="defaultPomodoroInput" min="5" max="120" step="5" value="25">
+                        </label>
+
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="soundEnabledInput" checked>
+                            <span>Sonidos al completar sesión</span>
+                        </label>
+
+                        <button class="primary-btn" type="submit">
+                            <i class="ri-save-line"></i>
+                            Guardar ajustes
+                        </button>
+                    </form>
                 </div>
 
             </section>

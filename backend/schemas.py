@@ -1,20 +1,20 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Literal, Optional
 
 # --- TASKS ---
 
 class TaskCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=180)
     due_date: Optional[str] = None
-    priority: str = "media"
-    duration_minutes: int = 30
+    priority: Literal["alta", "media", "baja"] = "media"
+    duration_minutes: int = Field(default=30, ge=5, le=480)
     completed: bool = False
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=180)
     due_date: Optional[str] = None
-    priority: Optional[str] = None
-    duration_minutes: Optional[int] = None
+    priority: Optional[Literal["alta", "media", "baja"]] = None
+    duration_minutes: Optional[int] = Field(default=None, ge=5, le=480)
     completed: Optional[bool] = None
 
 class TaskResponse(BaseModel):
@@ -32,12 +32,12 @@ class TaskResponse(BaseModel):
 # --- USERS ---
 
 class UserCreate(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
 
 class UserResponse(BaseModel):
     id: int
@@ -60,8 +60,8 @@ class TokenData(BaseModel):
 # --- SESSION ---
 
 class SessionCreate(BaseModel):
-    duration_minutes: int
-    mode: str = "pomodoro"
+    duration_minutes: int = Field(ge=1, le=240)
+    mode: Literal["pomodoro", "break", "short-break", "long-break"] = "pomodoro"
 
 class SessionResponse(BaseModel):
     id: int

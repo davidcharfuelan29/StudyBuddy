@@ -11,9 +11,9 @@ from .schemas import TokenData
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    import warnings
-    warnings.warn("SECRET_KEY no configurada en .env. Usando clave insegura de desarrollo. Configúrala para producción.")
-    SECRET_KEY = "studybuddy-dev-secret-change-in-prod"
+    raise RuntimeError(
+        "SECRET_KEY no configurada. Define esta variable en .env antes de iniciar StudyBuddy."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
