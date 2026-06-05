@@ -9,6 +9,24 @@ function getAuthHeaders(){
     return headers;
 }
 
+function getCurrentUserId(){
+    try{
+        const u = JSON.parse(localStorage.getItem('user'));
+        return u && u.id ? u.id : null;
+    } catch { return null; }
+}
+
+function handleUnauthorized(response){
+    if(response.status === 401){
+        showToast('Sesión expirada. Inicia sesión de nuevo.', 'error');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        return true;
+    }
+    return false;
+}
+
 if(!localStorage.getItem("token")){
     window.location.href = "login.html";
 }
@@ -473,6 +491,61 @@ function loadStats(){
 }
 
 /* =========================
+   LOAD PET NAME
+========================= */
+
+function loadPetName(){
+
+    const userId = getCurrentUserId();
+    const name = userId ? localStorage.getItem(`petName_${userId}`) : null;
+    const el = document.getElementById('petNameDisplay');
+    if(el) el.textContent = name || 'Buddy';
+
+}
+
+/* =========================
+   ONBOARDING MODAL
+========================= */
+
+function showOnboardingModal(){
+
+    const overlay = document.getElementById('onboardingOverlay');
+
+    if(!overlay) return;
+
+    overlay.classList.add('is-visible');
+
+    document.getElementById('onboardingSubmit')
+        .addEventListener('click', function onboardingHandler(e){
+
+            e.preventDefault();
+
+            const userId = getCurrentUserId();
+
+            if(!userId) return;
+
+            const nameInput =
+                document.getElementById('onboardingName');
+            const petInput =
+                document.getElementById('onboardingPetName');
+
+            const displayName = nameInput.value.trim() || 'Estudiante';
+            const petName     = petInput.value.trim()   || 'Buddy';
+
+            localStorage.setItem(`displayName_${userId}`, displayName);
+            localStorage.setItem(`petName_${userId}`, petName);
+            localStorage.setItem(`onboarding_${userId}`, 'true');
+
+            loadPetName();
+            loadUserInSidebar();
+
+            overlay.classList.remove('is-visible');
+
+        }, { once: true });
+
+}
+
+/* =========================
    ANALYTICS SECTION
 ========================= */
 
@@ -604,7 +677,12 @@ function startPomodoro(){
                SAVE SESSION & REFRESH STATS
             ========================= */
 
-            saveSessionToBackend(currentMode, 'pomodoro').then(ok => {
+            let sessionMode;
+            if(currentMode === 5) sessionMode = 'break';
+            else if(currentMode === 25) sessionMode = 'pomodoro';
+            else sessionMode = 'long-break';
+
+            saveSessionToBackend(currentMode, sessionMode).then(ok => {
                 if(ok) loadStatsFromBackend();
             });
 
@@ -616,7 +694,8 @@ function startPomodoro(){
 
             /* SOUND */
 
-            const soundEnabled = localStorage.getItem('settings_soundEnabled');
+            const userId = getCurrentUserId();
+            const soundEnabled = userId ? localStorage.getItem(`soundEnabled_${userId}`) : null;
             if(soundEnabled !== 'false'){
                 completeSound.play().catch(() => {});
             }
@@ -713,6 +792,7 @@ async function saveSessionToBackend(minutes, mode){
             }),
         });
 
+        if(handleUnauthorized(res)) return false;
         return res.ok;
 
     }
@@ -732,6 +812,8 @@ async function saveSessionToBackend(minutes, mode){
 
 async function loadStatsFromBackend(){
 
+    let stats = null;
+
     try{
 
         const response =
@@ -739,9 +821,10 @@ async function loadStatsFromBackend(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(response)) return;
         if(!response.ok) return;
 
-        const stats = await response.json();
+        stats = await response.json();
 
         if(stats.level > currentLevel){
             showToast(`¡Subiste al nivel ${stats.level}! 🎉`, 'success');
@@ -815,18 +898,34 @@ async function loadStatsFromBackend(){
 
         }
 
+        /* ONBOARDING — usuario nuevo sin sesiones */
+
+        const onboardingKey = `onboarding_${getCurrentUserId()}`;
+
+        if(!localStorage.getItem(onboardingKey)){
+            if(total > 0){
+                localStorage.setItem(onboardingKey, 'true');
+            } else {
+                showOnboardingModal();
+            }
+        }
+
     }
 
     catch(error){
 
         console.warn('No se pudieron cargar stats del backend:', error);
+        showToast(
+            'No se pudieron cargar estadísticas. Verifica conexión al servidor.',
+            'warning'
+        );
 
     }
 
-    /* UPDATE ANALYTICS & ACHIEVEMENTS */
-
-    loadAnalytics(stats, tasks);
-    loadAchievements(stats);
+    if(stats){
+        loadAnalytics(stats, tasks);
+        loadAchievements(stats);
+    }
 
     /* FETCH SESSIONS FOR CHART */
 
@@ -837,6 +936,7 @@ async function loadStatsFromBackend(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(sRes)) return;
         if(sRes.ok){
 
             const sessions =
@@ -1062,21 +1162,28 @@ sidebarToggle.addEventListener('click', () => {
 });
 
 /* =========================
-   LOGOUT BUTTON
+   LOGOUT
 ========================= */
+
+function handleLogout(){
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+}
 
 const logoutBtn = document.querySelector('.logout-btn');
 
 if(logoutBtn){
+    logoutBtn.addEventListener('click', handleLogout);
+}
 
-    logoutBtn.addEventListener('click', () => {
+const menuLogout = document.querySelector('.menu-logout');
 
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
-
+if(menuLogout){
+    menuLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
     });
-
 }
 
 /* =========================
@@ -1414,12 +1521,7 @@ async function fetchTasks(){
                 headers: getAuthHeaders(),
             });
 
-        if(response.status === 401){
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
-            return;
-        }
+        if(handleUnauthorized(response)) return;
 
         if(!response.ok) throw new Error('No se pudieron cargar las tareas');
 
@@ -1447,32 +1549,45 @@ async function fetchTasks(){
     renderTodayTasks();
     renderAllTasks();
     renderCalendar(calendarMonth, calendarYear);
-
     loadAnalytics(null, tasks);
 
 }
 
 async function createTask(payload){
 
-    const response =
-        await fetch(`${API_URL}/tasks`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload),
-        });
+    try{
 
-    if(!response.ok){
+        const response =
+            await fetch(`${API_URL}/tasks`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload),
+            });
 
-        showToast(
-            'No se pudo crear la tarea',
-            'error'
-        );
+        if(!response.ok){
 
-        throw new Error('No se pudo crear la tarea');
+            showToast(
+                'No se pudo crear la tarea',
+                'error'
+            );
+
+            throw new Error('No se pudo crear la tarea');
+
+        }
+
+        await fetchTasks();
 
     }
 
-    await fetchTasks();
+    catch(error){
+        if(error.message !== 'No se pudo crear la tarea'){
+            showToast(
+                'Error de conexión. ¿El backend está activo?',
+                'error'
+            );
+        }
+        throw error;
+    }
 
 }
 
@@ -1483,24 +1598,37 @@ async function updateTask(taskId, payload){
 
     if(!currentTask) return;
 
-    const response =
-        await fetch(`${API_URL}/tasks/${taskId}`, {
-            method: 'PUT',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-                ...currentTask,
-                ...payload,
-            }),
-        });
+    try{
 
-    if(response.ok){
+        const response =
+            await fetch(`${API_URL}/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    ...currentTask,
+                    ...payload,
+                }),
+            });
 
-        await fetchTasks();
+        if(response.ok){
 
-    } else {
+            await fetchTasks();
+
+        } else {
+
+            showToast(
+                'Error al actualizar la tarea',
+                'error'
+            );
+
+        }
+
+    }
+
+    catch(error){
 
         showToast(
-            'Error al actualizar la tarea',
+            'Error de conexión al actualizar la tarea',
             'error'
         );
 
@@ -1681,6 +1809,7 @@ async function renderSessions(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(response)) return;
         if(!response.ok) throw new Error();
 
         const sessions = await response.json();
@@ -1910,11 +2039,6 @@ if(taskForm){
 
             submitBtn.innerHTML = originalText;
 
-            showToast(
-                'No se pudo crear la tarea. ¿El backend está activo?',
-                'error'
-            );
-
         }
 
     });
@@ -2052,8 +2176,9 @@ function loadUserInSidebar(){
 
         const userData = JSON.parse(stored);
 
+        const displayName = localStorage.getItem(`displayName_${userData.id}`);
         const name =
-            userData.email.split('@')[0] || userData.email;
+            displayName || userData.email.split('@')[0] || userData.email;
 
         const nameElement =
             document.querySelector('.user-info h3');
@@ -2089,6 +2214,99 @@ function loadUserInSidebar(){
         console.warn('No se pudo cargar usuario en sidebar');
 
     }
+
+}
+
+/* =========================
+   INLINE NAME EDIT
+========================= */
+
+function setupNameEdit(){
+
+    const row = document.querySelector('.user-name-row');
+    if(!row) return;
+
+    /* Usamos delegación para no tener que re-attach tras editar */
+
+    row.addEventListener('click', (e) => {
+
+        const btn = e.target.closest('.edit-name-btn');
+        if(!btn) return;
+
+        const h3      = row.querySelector('h3');
+        const edBtn   = row.querySelector('.edit-name-btn');
+        if(!h3 || !edBtn) return;
+
+        const currentName = h3.textContent;
+
+        /* INPUT de edición */
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-name-input';
+        input.value = currentName;
+
+        /* Botón confirmar ✓ */
+
+        const okBtn = document.createElement('button');
+        okBtn.className = 'edit-name-confirm';
+        okBtn.title = 'Guardar';
+        okBtn.innerHTML = '<i class="ri-check-line"></i>';
+
+        h3.replaceWith(input);
+        edBtn.replaceWith(okBtn);
+
+        input.focus();
+        input.select();
+
+        let done = false;
+
+        function commit(){
+
+            if(done) return;
+            done = true;
+
+            const userId = getCurrentUserId();
+            if(!userId) return rollback();
+
+            const val = input.value.trim();
+
+            if(val){
+                localStorage.setItem(`displayName_${userId}`, val);
+            } else {
+                localStorage.removeItem(`displayName_${userId}`);
+            }
+
+            rollback();
+            loadUserInSidebar();
+
+        }
+
+        function rollback(){
+
+            const newH3 = document.createElement('h3');
+            newH3.textContent = currentName;
+
+            const newBtn = document.createElement('button');
+            newBtn.className = 'edit-name-btn';
+            newBtn.title = 'Editar nombre';
+            newBtn.innerHTML = '<i class="ri-pencil-line"></i>';
+
+            if(input.parentNode) input.replaceWith(newH3);
+            if(okBtn.parentNode) okBtn.replaceWith(newBtn);
+
+        }
+
+        okBtn.addEventListener('click', commit);
+
+        input.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') { e.preventDefault(); commit(); }
+            if(e.key === 'Escape') { e.preventDefault(); rollback(); }
+        });
+
+        input.addEventListener('blur', commit);
+
+    });
 
 }
 
@@ -2171,9 +2389,13 @@ document.addEventListener('visibilitychange', () => {
 
 function loadSettings(){
 
-    const displayName = localStorage.getItem('settings_displayName');
-    const pomodoroDuration = localStorage.getItem('settings_pomodoroDuration');
-    const soundEnabled = localStorage.getItem('settings_soundEnabled');
+    const userId = getCurrentUserId();
+
+    if(!userId) return;
+
+    const displayName = localStorage.getItem(`displayName_${userId}`);
+    const pomodoroDuration = localStorage.getItem(`pomodoroDuration_${userId}`);
+    const soundEnabled = localStorage.getItem(`soundEnabled_${userId}`);
 
     const nameInput = document.getElementById('displayNameInput');
     const pomoInput = document.getElementById('defaultPomodoroInput');
@@ -2205,12 +2427,16 @@ if(settingsForm){
 
         e.preventDefault();
 
+        const userId = getCurrentUserId();
+
+        if(!userId) return;
+
         const nameInput = document.getElementById('displayNameInput');
         const pomoInput = document.getElementById('defaultPomodoroInput');
         const soundInput = document.getElementById('soundEnabledInput');
 
         if(nameInput){
-            localStorage.setItem('settings_displayName', nameInput.value);
+            localStorage.setItem(`displayName_${userId}`, nameInput.value);
             const nameEl = document.querySelector('.user-info h3');
             if(nameEl) nameEl.textContent = nameInput.value;
             const greetingEl = document.getElementById('greetingName');
@@ -2218,11 +2444,11 @@ if(settingsForm){
         }
 
         if(pomoInput){
-            localStorage.setItem('settings_pomodoroDuration', pomoInput.value);
+            localStorage.setItem(`pomodoroDuration_${userId}`, pomoInput.value);
         }
 
         if(soundInput){
-            localStorage.setItem('settings_soundEnabled', soundInput.checked);
+            localStorage.setItem(`soundEnabled_${userId}`, soundInput.checked);
         }
 
         showToast('Ajustes guardados', 'success');
@@ -2246,6 +2472,10 @@ renderMiniStreak([]);
 loadStatsFromBackend();
 
 loadUserInSidebar();
+
+loadPetName();
+
+setupNameEdit();
 
 loadSettings();
 

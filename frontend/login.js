@@ -2,13 +2,11 @@ const API_URL = "http://127.0.0.1:8000";
 
 let isLogin = true;
 
-// 👁️ mostrar contraseña
 function togglePassword() {
     const input = document.getElementById("password");
     input.type = input.type === "password" ? "text" : "password";
 }
 
-// 🔁 cambiar modo
 document.getElementById("switchMode").onclick = () => {
     isLogin = !isLogin;
 
@@ -17,39 +15,66 @@ document.getElementById("switchMode").onclick = () => {
 
     document.getElementById("submitBtn").textContent =
         isLogin ? "Iniciar sesión" : "Registrarse";
+    document.getElementById("message").textContent = "";
 };
 
-// 🚀 submit
+function getErrorDetail(data) {
+    if (typeof data.detail === "string") return data.detail;
+    if (Array.isArray(data.detail)) {
+        return data.detail.map(e => e.msg).join(". ");
+    }
+    return "Error desconocido";
+}
+
 document.getElementById("form").addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    const messageEl = document.getElementById("message");
+    messageEl.textContent = "";
+    messageEl.style.color = "#f87171";
 
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
+    const submitBtn = document.getElementById("submitBtn");
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Cargando...";
+
     const endpoint = isLogin ? "/login" : "/register";
 
-    const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-    });
+    try {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    if (!res.ok) {
-        document.getElementById("message").textContent = data.detail;
-        return;
-    }
+        if (!res.ok) {
+            messageEl.textContent = getErrorDetail(data);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+        }
 
-    if (isLogin) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = "dashboard.html";
-    } else {
-        document.getElementById("message").style.color = "#34d399";
-        document.getElementById("message").textContent =
-            "Cuenta creada ✔ ahora inicia sesión";
+        if (isLogin) {
+            localStorage.setItem("token", data.access_token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            window.location.href = "dashboard.html";
+        } else {
+            messageEl.style.color = "#34d399";
+            messageEl.textContent = "Cuenta creada ✔ ahora inicia sesión";
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            isLogin = true;
+            document.getElementById("title").textContent = "¡Bienvenido de vuelta! 👋";
+            document.getElementById("submitBtn").textContent = "Iniciar sesión";
+        }
+    } catch (error) {
+        messageEl.textContent = "Error de conexión. Verifica que el servidor esté corriendo.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 });

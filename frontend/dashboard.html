@@ -114,6 +114,15 @@
 
                     </a>
 
+                    <div class="menu-divider"></div>
+
+                    <a href="#" class="menu-logout" data-tip="Cerrar sesión">
+
+                        <i class="ri-logout-box-r-line"></i>
+                        <span>Cerrar sesión</span>
+
+                    </a>
+
                 </nav>
 
             </div>
@@ -127,8 +136,14 @@
 
                 <div class="user-info">
 
-                    <h3>Carlos David</h3>
-                    <p>Estudiante</p>
+                    <div class="user-name-row">
+                        <h3>Cargando...</h3>
+                        <button class="edit-name-btn" title="Editar nombre">
+                            <i class="ri-pencil-line"></i>
+                        </button>
+                    </div>
+
+                    <p>Cargando...</p>
 
                 </div>
 
@@ -150,7 +165,7 @@
 
                 <div class="welcome">
 
-                    <h1>Hola, <span id="greetingName">Carlos</span> 👋</h1>
+                    <h1>Hola, <span id="greetingName">...</span> 👋</h1>
                     <p>Construyamos una sesión increíble hoy.</p>
 
                 </div>
@@ -432,7 +447,7 @@
 
                         <div>
 
-                            <h2>Tu mascota: <span>Buddy</span></h2>
+                            <h2>Tu mascota: <span id="petNameDisplay">Buddy</span></h2>
                             <p id="levelText">Nivel 1</p>
 
                         </div>
@@ -969,10 +984,28 @@
 
     </div>
 
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="onboardingOverlay" class="onboarding-overlay">
+        <div class="onboarding-modal">
+            <div class="onboarding-glow"></div>
+            <img src="assets/imagenes/logo.png" class="onboarding-logo" alt="StudyBuddy">
+            <h2>¡Bienvenido a StudyBuddy! 🚀</h2>
+            <p class="onboarding-subtitle">Antes de empezar, cuéntanos un poco sobre ti</p>
+            <div class="onboarding-field">
+                <label for="onboardingName">¿Cómo te llamas?</label>
+                <input type="text" id="onboardingName" placeholder="Tu nombre" required>
+            </div>
+            <div class="onboarding-field">
+                <label for="onboardingPetName">¿Nombre de tu mascota?</label>
+                <input type="text" id="onboardingPetName" placeholder="Ej: Buddy" value="Buddy">
+            </div>
+            <button id="onboardingSubmit" class="primary-btn">¡Comenzar!</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="dashboard.js"></script>
-
-    <div id="toastContainer" class="toast-container"></div>
 
 </body>
 

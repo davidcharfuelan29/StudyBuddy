@@ -45,7 +45,10 @@ def get_db():
     finally:
         db.close()
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[StudyBuddy] Error al crear tablas: {e}")
 
 def ensure_missing_columns():
     inspector = inspect(engine)
@@ -76,11 +79,10 @@ def ensure_missing_columns():
                         text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
                     )
 
-# Parche temporal de columnas. Reemplazar por Alembic cuando el proyecto pase a producción.
 try:
     ensure_missing_columns()
-except Exception:
-    pass
+except Exception as e:
+    print(f"[StudyBuddy] Error en ensure_missing_columns: {e}")
 
 app.add_middleware(
     CORSMiddleware,
