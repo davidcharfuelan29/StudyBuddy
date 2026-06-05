@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = (window.STUDYBUDDY_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, '');
 
 let isLogin = true;
 
@@ -12,9 +12,14 @@ document.getElementById("switchMode").onclick = () => {
 
     document.getElementById("title").textContent =
         isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
-
     document.getElementById("submitBtn").textContent =
         isLogin ? "Iniciar sesión" : "Registrarse";
+    document.getElementById("switchMode").textContent =
+        isLogin ? "Regístrate" : "Inicia sesión";
+    document.getElementById("switchLoginText").style.display =
+        isLogin ? "inline" : "none";
+    document.getElementById("switchRegisterText").style.display =
+        isLogin ? "none" : "inline";
     document.getElementById("message").textContent = "";
 };
 
@@ -71,6 +76,9 @@ document.getElementById("form").addEventListener("submit", async (e) => {
             isLogin = true;
             document.getElementById("title").textContent = "¡Bienvenido de vuelta! 👋";
             document.getElementById("submitBtn").textContent = "Iniciar sesión";
+            document.getElementById("switchMode").textContent = "Regístrate";
+            document.getElementById("switchLoginText").style.display = "inline";
+            document.getElementById("switchRegisterText").style.display = "none";
         }
     } catch (error) {
         messageEl.textContent = "Error de conexión. Verifica que el servidor esté corriendo.";

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
@@ -6,19 +6,26 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 from datetime import datetime, timezone
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 
 from .database import SessionLocal, engine, Base
-from .models import Task, User, Session as SessionModel
+from .models import Task, User, Session as SessionModel, UserSettings
 from .schemas import (
     TaskCreate, TaskUpdate, TaskResponse,
     UserCreate, UserLogin, UserResponse,
     Token, SessionCreate, SessionResponse,
-    StatsResponse,
+    StatsResponse, SettingsResponse, SettingsUpdate,
 )
 from .auth import create_access_token, get_current_user
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORS_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000"
@@ -64,6 +71,7 @@ def ensure_missing_columns():
             "user_id": "INTEGER REFERENCES users(id)",
             "duration_minutes": "INTEGER DEFAULT 25",
             "mode": "VARCHAR DEFAULT 'pomodoro'",
+            "task_id": "INTEGER REFERENCES tasks(id)",
             "created_at": "VARCHAR",
         },
     }
@@ -98,7 +106,8 @@ def home():
 
 
 @app.post("/register")
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Usuario ya existe")
@@ -112,7 +121,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user:
@@ -226,13 +236,11 @@ def create_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    now = datetime.now(timezone.utc).isoformat()
-
     new_session = SessionModel(
         user_id=current_user.id,
         duration_minutes=session.duration_minutes,
         mode=session.mode,
-        created_at=now,
+        task_id=session.task_id,
     )
     db.add(new_session)
     db.commit()
@@ -262,16 +270,19 @@ def get_stats(
 ):
     sessions = (
         db.query(SessionModel)
-        .filter(SessionModel.user_id == current_user.id)
+        .filter(SessionModel.user_id == current_user.id, SessionModel.mode == 'pomodoro')
         .all()
     )
 
     total_sessions = len(sessions)
     total_minutes = sum(s.duration_minutes for s in sessions)
 
+    light_sessions = sum(1 for s in sessions if (s.duration_minutes or 0) <= 15)
+    deep_sessions = total_sessions - light_sessions
+
     streak = calculate_streak(sessions)
 
-    total_xp = total_sessions * 50
+    total_xp = total_minutes
     xp = total_xp % 350
     level = (total_xp // 350) + 1
 
@@ -281,7 +292,37 @@ def get_stats(
         current_streak=streak,
         xp=xp,
         level=level,
+        light_sessions=light_sessions,
+        deep_sessions=deep_sessions,
     )
+
+
+@app.get("/settings", response_model=SettingsResponse)
+def get_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        return SettingsResponse(data={})
+    return SettingsResponse(data=settings.data)
+
+
+@app.put("/settings", response_model=SettingsResponse)
+def update_settings(
+    settings_data: SettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        settings = UserSettings(user_id=current_user.id, data=settings_data.data)
+        db.add(settings)
+    else:
+        settings.data = settings_data.data
+    db.commit()
+    db.refresh(settings)
+    return SettingsResponse(data=settings.data)
 
 
 def calculate_streak(sessions: list) -> int:
@@ -291,8 +332,7 @@ def calculate_streak(sessions: list) -> int:
     dates = set()
     for s in sessions:
         if s.created_at:
-            day = s.created_at[:10]
-            dates.add(day)
+            dates.add(s.created_at.date())
 
     if not dates:
         return 0
@@ -300,18 +340,16 @@ def calculate_streak(sessions: list) -> int:
     sorted_dates = sorted(dates, reverse=True)
     streak = 1
 
-    from datetime import date, timedelta
+    today = datetime.now(timezone.utc).date()
 
-    today = date.today()
-
-    if sorted_dates[0] < today.isoformat():
-        last = date.fromisoformat(sorted_dates[0])
+    if sorted_dates[0] < today:
+        last = sorted_dates[0]
         if (today - last).days > 1:
             return 0
 
     for i in range(len(sorted_dates) - 1):
-        current = date.fromisoformat(sorted_dates[i])
-        previous = date.fromisoformat(sorted_dates[i + 1])
+        current = sorted_dates[i]
+        previous = sorted_dates[i + 1]
         if (current - previous).days == 1:
             streak += 1
         else:

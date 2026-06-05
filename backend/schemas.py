@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Literal, Optional
+from datetime import datetime
 
 # --- TASKS ---
 
@@ -62,13 +63,15 @@ class TokenData(BaseModel):
 class SessionCreate(BaseModel):
     duration_minutes: int = Field(ge=1, le=240)
     mode: Literal["pomodoro", "break", "short-break", "long-break"] = "pomodoro"
+    task_id: Optional[int] = None
 
 class SessionResponse(BaseModel):
     id: int
     user_id: int
     duration_minutes: int
     mode: str
-    created_at: str
+    task_id: Optional[int] = None
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -81,3 +84,17 @@ class StatsResponse(BaseModel):
     current_streak: int
     xp: int
     level: int
+    light_sessions: int = 0
+    deep_sessions: int = 0
+
+
+# --- SETTINGS ---
+
+class SettingsResponse(BaseModel):
+    data: dict
+
+    model_config = {"from_attributes": True}
+
+
+class SettingsUpdate(BaseModel):
+    data: dict

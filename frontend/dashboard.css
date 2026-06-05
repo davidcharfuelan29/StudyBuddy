@@ -571,8 +571,43 @@ body{
 }
 
 .focus-subtitle{
-    color:#a7add7;
+    color:#9ca3cf;
     margin-top:8px;
+    font-size:14px;
+    transition:all .3s ease;
+    position:relative;
+}
+
+.focus-subtitle.task-active{
+    color:#b388ff;
+    font-weight:500;
+    font-size:15px;
+    padding-left:16px;
+    animation:subtitlePop .4s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+
+.focus-subtitle.task-active::before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:50%;
+    transform:translateY(-50%);
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#7c5cff;
+    box-shadow:0 0 8px rgba(124,92,255,.6);
+    animation:dotGlow 2s ease-in-out infinite;
+}
+
+@keyframes subtitlePop{
+    0%{ opacity:0; transform:translateY(-6px); }
+    100%{ opacity:1; transform:translateY(0); }
+}
+
+@keyframes dotGlow{
+    0%,100%{ box-shadow:0 0 8px rgba(124,92,255,.6); }
+    50%{ box-shadow:0 0 14px rgba(124,92,255,.9); }
 }
 
 .focus-actions{
@@ -1109,6 +1144,30 @@ button:hover{
 .task-menu:hover{
     color:#ff6b6b;
     background:rgba(255,107,107,0.12);
+}
+
+.task-start-btn{
+    width:28px;
+    height:28px;
+    border:none;
+    border-radius:8px;
+    background:transparent;
+    color:#7c5cff;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:0.25s ease;
+}
+
+.task-start-btn:hover{
+    color:#a78bfa;
+    background:rgba(124,92,255,0.12);
+}
+
+.task-start-btn:focus-visible{
+    outline:2px solid #7c5cff;
+    outline-offset:2px;
 }
 
 .task.completed .task-left > span{
@@ -2354,7 +2413,7 @@ img{
     position:fixed;
     bottom:30px;
     right:30px;
-    z-index:9999;
+    z-index:100000;
     display:flex;
     flex-direction:column;
     gap:10px;
@@ -2584,6 +2643,50 @@ img{
     padding-right:14px;
 }
 
+.toast.has-confirm{
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+    padding:14px 18px;
+    animation:toastIn .35s ease;
+}
+
+.toast-actions{
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+}
+
+.toast-confirm-yes{
+    background:#7c5cff;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:6px 14px;
+    cursor:pointer;
+    font-size:13px;
+    transition:0.2s;
+}
+
+.toast-confirm-yes:hover{
+    background:#6a4be0;
+}
+
+.toast-confirm-no{
+    background:rgba(255,255,255,.08);
+    color:#d7daf7;
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:8px;
+    padding:6px 14px;
+    cursor:pointer;
+    font-size:13px;
+    transition:0.2s;
+}
+
+.toast-confirm-no:hover{
+    background:rgba(255,255,255,.12);
+}
+
 /* =========================
    ONBOARDING MODAL
 ========================= */
@@ -2710,4 +2813,17 @@ img{
     margin-top:8px;
     padding:16px;
     font-size:16px;
+}
+
+/* =========================
+   FOCUS / KEYBOARD
+========================= */
+
+.secondary-btn:focus-visible,
+.small-btn:focus-visible,
+.period-btn:focus-visible,
+.edit-name-btn:focus-visible,
+.primary-btn:focus-visible{
+    outline:2px solid #7c5cff;
+    outline-offset:2px;
 }

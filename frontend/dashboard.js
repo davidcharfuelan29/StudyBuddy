@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = (window.STUDYBUDDY_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, '');
 
 function getAuthHeaders(){
     const token = localStorage.getItem("token");
@@ -110,6 +110,42 @@ function showUndoToast(message, onUndo){
 
 }
 
+function showConfirmToast(message, onConfirm, onCancel){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const toast =
+        document.createElement('div');
+
+    toast.className = 'toast info has-confirm';
+
+    toast.innerHTML = `
+        <span>${message}</span>
+        <div class="toast-actions">
+            <button class="toast-confirm-yes">Sí, completada</button>
+            <button class="toast-confirm-no">Todavía no</button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    toast.querySelector('.toast-confirm-yes')
+        .addEventListener('click', () => {
+            if(onConfirm) onConfirm();
+            toast.remove();
+        });
+
+    toast.querySelector('.toast-confirm-no')
+        .addEventListener('click', () => {
+            if(onCancel) onCancel();
+            toast.remove();
+        });
+
+}
+
 /* =========================
    PARTICLES SYSTEM
 ========================= */
@@ -217,6 +253,9 @@ const flowCards =
 const focusModeLabel =
     document.getElementById('focusModeLabel');
 
+const focusSubtitle =
+    document.getElementById('focusSubtitle');
+
 const sidebar =
     document.querySelector('.sidebar');
 
@@ -286,6 +325,8 @@ let timerRunning = false;
 
 let timerInterval;
 
+let selectedTask = null;
+
 /* =========================
    TASKS / CALENDAR STATE
 ========================= */
@@ -321,8 +362,13 @@ const maxXP = 350;
    SOUND
 ========================= */
 
-const completeSound =
-    new Audio('assets/sonidos/complete.mp3');
+function playCompleteSound(){
+    const sound = new Audio('assets/sonidos/complete.mp3');
+    sound.volume = 0.5;
+    sound.play().catch(() => {
+        setTimeout(() => sound.play().catch(() => {}), 200);
+    });
+}
 
 
 /* =========================
@@ -422,6 +468,8 @@ function loadStats(){
 
     const hours =
         Math.floor(totalStudyMinutes / 60);
+    const mins =
+        totalStudyMinutes % 60;
 
     const studyHoursElement =
         document.getElementById('studyHours');
@@ -429,7 +477,9 @@ function loadStats(){
     if(studyHoursElement){
 
         studyHoursElement.textContent =
-            `${hours}h`;
+            hours > 0
+                ? `${hours}h ${mins}m`
+                : `${mins}m`;
 
     }
 
@@ -443,7 +493,7 @@ function loadStats(){
         const consistency =
             completedSessions > 0
                 ? Math.min(100, Math.round((completedSessions / 7) * 100))
-                : 100;
+                : 0;
 
         consistencyElement.textContent = `${consistency}%`;
 
@@ -536,6 +586,7 @@ function showOnboardingModal(){
             localStorage.setItem(`petName_${userId}`, petName);
             localStorage.setItem(`onboarding_${userId}`, 'true');
 
+            syncSettingsToBackend();
             loadPetName();
             loadUserInSidebar();
 
@@ -559,7 +610,8 @@ function loadAnalytics(stats, allTasks){
     const hoursEl = document.getElementById('analyticsHours');
     if(hoursEl && stats){
         const h = Math.floor(stats.total_minutes / 60);
-        hoursEl.textContent = `${h}h`;
+        const m = stats.total_minutes % 60;
+        hoursEl.textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
     }
 
     const pendingEl = document.getElementById('analyticsPendingTasks');
@@ -572,6 +624,10 @@ function loadAnalytics(stats, allTasks){
         const d = stats.current_streak;
         streakEl.textContent = `${d} ${d === 1 ? 'día' : 'días'}`;
     }
+
+    /* =========================
+       ANALYTICS INSIGHT
+    ========================= */
 
     const insightEl = document.getElementById('analyticsInsight');
     if(insightEl && stats){
@@ -678,11 +734,19 @@ function startPomodoro(){
             ========================= */
 
             let sessionMode;
-            if(currentMode === 5) sessionMode = 'break';
-            else if(currentMode === 25) sessionMode = 'pomodoro';
-            else sessionMode = 'long-break';
+            if(selectedTask){
+                sessionMode = 'pomodoro';
+            } else if(currentMode === 5){
+                sessionMode = 'break';
+            } else if(currentMode === 25){
+                sessionMode = 'pomodoro';
+            } else {
+                sessionMode = 'long-break';
+            }
 
-            saveSessionToBackend(currentMode, sessionMode).then(ok => {
+            const taskId = selectedTask ? selectedTask.id : null;
+
+            saveSessionToBackend(currentMode, sessionMode, taskId).then(ok => {
                 if(ok) loadStatsFromBackend();
             });
 
@@ -697,7 +761,7 @@ function startPomodoro(){
             const userId = getCurrentUserId();
             const soundEnabled = userId ? localStorage.getItem(`soundEnabled_${userId}`) : null;
             if(soundEnabled !== 'false'){
-                completeSound.play().catch(() => {});
+                playCompleteSound();
             }
 
             /* BUTTON */
@@ -720,6 +784,34 @@ function startPomodoro(){
                 'Sesión completada 🎉 ¡Excelente trabajo!',
                 'success'
             );
+
+            /* PREGUNTAR SI COMPLETÓ LA TAREA */
+
+            if(selectedTask){
+                showConfirmToast(
+                    `¿Completaste "${selectedTask.title}"?`,
+                    async () => {
+                        await updateTask(selectedTask.id, { completed: true });
+                        selectedTask = null;
+                        if(focusSubtitle){
+                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                            focusSubtitle.classList.remove('task-active');
+                        }
+                        resetPomodoro();
+                        fetchTasks();
+                    },
+                    () => {
+                        selectedTask = null;
+                        if(focusSubtitle){
+                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                            focusSubtitle.classList.remove('task-active');
+                        }
+                        resetPomodoro();
+                    }
+                );
+            } else {
+                resetPomodoro();
+            }
 
         }
 
@@ -779,17 +871,21 @@ function resetPomodoro(){
    SAVE SESSION TO BACKEND
 ========================= */
 
-async function saveSessionToBackend(minutes, mode){
+async function saveSessionToBackend(minutes, mode, taskId){
 
     try{
+
+        const body = {
+            duration_minutes: minutes,
+            mode: mode || 'pomodoro',
+        };
+
+        if(taskId) body.task_id = taskId;
 
         const res = await fetch(`${API_URL}/sessions`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({
-                duration_minutes: minutes,
-                mode: mode || 'pomodoro',
-            }),
+            body: JSON.stringify(body),
         });
 
         if(handleUnauthorized(res)) return false;
@@ -966,24 +1062,30 @@ function updateProductivityChart(sessions){
 
     if(!studyChart) return;
 
-    let focusMinutes = 0;
+    let deepMinutes = 0;
+    let lightMinutes = 0;
     let breakMinutes = 0;
 
     sessions.forEach(s => {
+        const mins = s.duration_minutes || 0;
         if(s.mode === 'pomodoro'){
-            focusMinutes += s.duration_minutes;
+            if(mins > 15){
+                deepMinutes += mins;
+            } else {
+                lightMinutes += mins;
+            }
         } else {
-            breakMinutes += s.duration_minutes;
+            breakMinutes += mins;
         }
     });
 
-    const totalMinutes = focusMinutes + breakMinutes || 1;
-    const focusPct = Math.round((focusMinutes / totalMinutes) * 100);
+    const totalMinutes = deepMinutes + lightMinutes + breakMinutes || 1;
+    const focusPct = Math.round(((deepMinutes + lightMinutes) / totalMinutes) * 100);
 
     studyChart.data.datasets[0].data = [
-        focusPct,
+        Math.round((deepMinutes / totalMinutes) * 100),
+        Math.round((lightMinutes / totalMinutes) * 100),
         Math.round((breakMinutes / totalMinutes) * 100),
-        0,
         0,
     ];
 
@@ -1004,8 +1106,8 @@ function updateProductivityChart(sessions){
         document.querySelectorAll('.progress-item');
 
     const categories = [
-        { label: 'Enfoque profundo', minutes: focusMinutes },
-        { label: 'Estudio ligero', minutes: 0 },
+        { label: 'Enfoque profundo', minutes: deepMinutes },
+        { label: 'Estudio ligero', minutes: lightMinutes },
         { label: 'Descansos', minutes: breakMinutes },
         { label: 'Distracciones', minutes: 0 },
     ];
@@ -1054,6 +1156,7 @@ function updateProductivityChart(sessions){
     if(!insightEl) return;
 
     const sessionCount = sessions.length;
+    const focusMinutes = deepMinutes + lightMinutes;
 
     if(sessionCount === 0){
         insightEl.textContent = 'Completa tu primera sesión para generar insights de productividad.';
@@ -1270,11 +1373,15 @@ function applySessionMode(minutes){
 
     }
 
+    if(focusSubtitle){
+        focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+        focusSubtitle.classList.remove('task-active');
+    }
+
     startButton.innerHTML = `
         <i class="ri-play-fill"></i>
         Iniciar sesión
     `;
-
 }
 
 function selectFlowCard(card){
@@ -1291,6 +1398,7 @@ function selectFlowCard(card){
 
     if(!Number.isNaN(minutes)){
 
+        selectedTask = null;
         applySessionMode(minutes);
 
     }
@@ -1468,11 +1576,28 @@ function createTaskElement(task){
                 ${task.priority}
             </span>
             <small>${task.duration_minutes} min</small>
+            <button class="task-start-btn" title="Iniciar timer con esta tarea">
+                <i class="ri-play-circle-line"></i>
+            </button>
             <button class="task-menu" title="Eliminar tarea">
                 <i class="ri-delete-bin-line"></i>
             </button>
         </div>
     `;
+
+    const startBtn =
+        taskElement.querySelector('.task-start-btn');
+
+    if(startBtn && !task.completed){
+        startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectTaskFromCard(task);
+        });
+    }
+
+    if(startBtn && task.completed){
+        startBtn.style.display = 'none';
+    }
 
     const checkbox =
         taskElement.querySelector('input');
@@ -1760,6 +1885,41 @@ function renderAllTasks(){
 
     updateBadgeCount();
 
+}
+
+function selectTaskFromCard(task){
+    selectedTask = task;
+    flowCards.forEach(c => c.classList.remove('active'));
+
+    const mins = task.duration_minutes || 25;
+    currentMode = mins;
+    totalTime = mins * 60;
+    timeLeft = totalTime;
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.querySelector('.circle')?.classList.remove('running');
+    updateTimer();
+
+    sessionStatus.innerHTML = `<span></span>Modo enfoque`;
+    focusModeLabel.textContent = 'Enfocado';
+    progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    if(focusSubtitle){
+        focusSubtitle.textContent = task.title;
+        focusSubtitle.classList.add('task-active');
+    }
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar sesión
+    `;
+
+    const timerSection = document.querySelector('.focus-circle')?.closest('.dashboard-section') || document.querySelector('.focus-circle');
+    if(timerSection){
+        timerSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    setActiveSection('home');
 }
 
 function getTasksByDate(dateString){
@@ -2163,6 +2323,60 @@ if(chartCanvas && window.Chart){
 }
 
 /* =========================
+   SETTINGS SYNC (Backend)
+========================= */
+
+async function syncSettingsToBackend(){
+    const userId = getCurrentUserId();
+    if(!userId) return;
+
+    const data = {
+        displayName: localStorage.getItem(`displayName_${userId}`) || '',
+        petName: localStorage.getItem(`petName_${userId}`) || '',
+        pomodoroDuration: parseInt(localStorage.getItem(`pomodoroDuration_${userId}`), 10) || 25,
+        soundEnabled: localStorage.getItem(`soundEnabled_${userId}`) === 'true',
+        onboardingCompleted: localStorage.getItem(`onboarding_${userId}`) === 'true',
+    };
+
+    try{
+        await fetch(`${API_URL}/settings`, {
+            method: 'PUT',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data }),
+        });
+    } catch(e){
+        console.warn('No se pudieron sincronizar ajustes:', e);
+    }
+}
+
+async function loadSettingsFromBackend(){
+    const userId = getCurrentUserId();
+    if(!userId) return;
+
+    try{
+        const res = await fetch(`${API_URL}/settings`, {
+            headers: getAuthHeaders(),
+        });
+        if(!res.ok) return;
+        const { data } = await res.json();
+
+        if(!data || Object.keys(data).length === 0) return;
+
+        if(data.displayName) localStorage.setItem(`displayName_${userId}`, data.displayName);
+        if(data.petName) localStorage.setItem(`petName_${userId}`, data.petName);
+        if(data.pomodoroDuration) localStorage.setItem(`pomodoroDuration_${userId}`, String(data.pomodoroDuration));
+        if(data.soundEnabled !== undefined) localStorage.setItem(`soundEnabled_${userId}`, String(data.soundEnabled));
+        if(data.onboardingCompleted) localStorage.setItem(`onboarding_${userId}`, 'true');
+
+        loadUserInSidebar();
+        loadPetName();
+        loadSettings();
+    } catch(e){
+        console.warn('No se pudieron cargar ajustes del backend:', e);
+    }
+}
+
+/* =========================
    LOAD USER INTO SIDEBAR
 ========================= */
 
@@ -2277,6 +2491,7 @@ function setupNameEdit(){
                 localStorage.removeItem(`displayName_${userId}`);
             }
 
+            syncSettingsToBackend();
             rollback();
             loadUserInSidebar();
 
@@ -2411,6 +2626,17 @@ function loadSettings(){
 
     if(pomoInput && pomodoroDuration){
         pomoInput.value = pomodoroDuration;
+        const mins = parseInt(pomodoroDuration, 10);
+        if(mins && !timerRunning){
+            currentMode = mins;
+            totalTime = mins * 60;
+            timeLeft = totalTime;
+            const display = document.getElementById('timerDisplay');
+            if(display){
+                const m = String(mins).padStart(2, '0');
+                display.textContent = `${m}:00`;
+            }
+        }
     }
 
     if(soundInput && soundEnabled !== null){
@@ -2451,6 +2677,7 @@ if(settingsForm){
             localStorage.setItem(`soundEnabled_${userId}`, soundInput.checked);
         }
 
+        syncSettingsToBackend();
         showToast('Ajustes guardados', 'success');
 
     });
@@ -2476,6 +2703,8 @@ loadUserInSidebar();
 loadPetName();
 
 setupNameEdit();
+
+loadSettingsFromBackend().then(() => syncSettingsToBackend());
 
 loadSettings();
 

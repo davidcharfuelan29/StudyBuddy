@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime, func, JSON
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -12,7 +12,7 @@ class Task(Base):
     priority = Column(String, default="media")
     duration_minutes = Column(Integer, default=30)
     completed = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
 
 # 🔹 MODELO USER
@@ -31,7 +31,17 @@ class Session(Base):
     __tablename__ = "sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     duration_minutes = Column(Integer, default=25)
     mode = Column(String, default="pomodoro")
-    created_at = Column(String, default=None)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# 🔹 MODELO USER SETTINGS (preferencias persistidas)
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    data = Column(JSON, default=dict)
