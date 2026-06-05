@@ -72,6 +72,9 @@ def ensure_missing_columns():
             "duration_minutes": "INTEGER DEFAULT 25",
             "mode": "VARCHAR DEFAULT 'pomodoro'",
             "task_id": "INTEGER REFERENCES tasks(id)",
+            "task_title": "VARCHAR",
+            "task_completed": "BOOLEAN DEFAULT FALSE",
+            "away_minutes": "INTEGER DEFAULT 0",
             "created_at": "VARCHAR",
         },
     }
@@ -241,6 +244,9 @@ def create_session(
         duration_minutes=session.duration_minutes,
         mode=session.mode,
         task_id=session.task_id,
+        task_title=session.task_title,
+        task_completed=session.task_completed,
+        away_minutes=session.away_minutes,
     )
     db.add(new_session)
     db.commit()

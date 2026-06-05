@@ -110,7 +110,9 @@ function showUndoToast(message, onUndo){
 
 }
 
-function showConfirmToast(message, onConfirm, onCancel){
+function showConfirmToast(message, onConfirm, onCancel, options = {}){
+
+    const { timeoutMs = 0, confirmLabel = 'Sí', cancelLabel = 'No' } = options;
 
     const container =
         document.getElementById('toastContainer');
@@ -122,24 +124,47 @@ function showConfirmToast(message, onConfirm, onCancel){
 
     toast.className = 'toast info has-confirm';
 
+    const timeoutHtml = timeoutMs > 0
+        ? `<span class="toast-timeout" style="display:block;font-size:12px;color:#9ea4cf;margin-top:4px;">Auto: ${confirmLabel} en ${Math.ceil(timeoutMs / 1000)}s</span>`
+        : '';
+
     toast.innerHTML = `
         <span>${message}</span>
+        ${timeoutHtml}
         <div class="toast-actions">
-            <button class="toast-confirm-yes">Sí, completada</button>
-            <button class="toast-confirm-no">Todavía no</button>
+            <button class="toast-confirm-yes">${confirmLabel}</button>
+            <button class="toast-confirm-no">${cancelLabel}</button>
         </div>
     `;
 
     container.appendChild(toast);
 
+    let countdown = null;
+
+    if(timeoutMs > 0){
+        const timeoutEl = toast.querySelector('.toast-timeout');
+        let remaining = Math.ceil(timeoutMs / 1000);
+        countdown = setInterval(() => {
+            remaining--;
+            if(timeoutEl) timeoutEl.textContent = `Auto: ${confirmLabel} en ${remaining}s`;
+            if(remaining <= 0){
+                clearInterval(countdown);
+                if(onConfirm) onConfirm();
+                toast.remove();
+            }
+        }, 1000);
+    }
+
     toast.querySelector('.toast-confirm-yes')
         .addEventListener('click', () => {
+            if(countdown) clearInterval(countdown);
             if(onConfirm) onConfirm();
             toast.remove();
         });
 
     toast.querySelector('.toast-confirm-no')
         .addEventListener('click', () => {
+            if(countdown) clearInterval(countdown);
             if(onCancel) onCancel();
             toast.remove();
         });
@@ -327,6 +352,8 @@ let timerInterval;
 
 let selectedTask = null;
 
+let savedTimerState = null;
+
 /* =========================
    TASKS / CALENDAR STATE
 ========================= */
@@ -348,6 +375,41 @@ let selectedCalendarDate =
 
 let completedSessions = 0;
 let totalStudyMinutes = 0;
+
+/* DISTRACTION TRACKING */
+
+let lastBreakEndTime = null;
+let awaySeconds = 0;
+let awayInterval = null;
+const MAX_DISTRACTION_GAP_MIN = 30;
+
+function getDistractionStorageKey(userId, dateStr){
+    return `distractions_${userId}_${dateStr}`;
+}
+
+function getTodayDistraction(userId){
+    const key = getDistractionStorageKey(userId, new Date().toISOString().slice(0,10));
+    return Number(localStorage.getItem(key)) || 0;
+}
+
+function addDistraction(userId, minutes){
+    const today = new Date().toISOString().slice(0,10);
+    const key = getDistractionStorageKey(userId, today);
+    const current = Number(localStorage.getItem(key)) || 0;
+    localStorage.setItem(key, current + minutes);
+}
+
+function getWeekDistractions(userId){
+    let total = 0;
+    const now = new Date();
+    for(let i = 0; i < 7; i++){
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const key = getDistractionStorageKey(userId, d.toISOString().slice(0,10));
+        total += Number(localStorage.getItem(key)) || 0;
+    }
+    return total;
+}
 
 /* =========================
    XP SYSTEM
@@ -702,6 +764,29 @@ function startPomodoro(){
 
     if(timerRunning) return;
 
+    if(currentMode === 25){
+        const uid = getCurrentUserId();
+        let breakEnd = lastBreakEndTime;
+        let breakDuration = 5;
+        if(uid){
+            const stored = localStorage.getItem(`lastBreakEnd_${uid}`);
+            if(stored) breakEnd = Number(stored);
+            const dur = localStorage.getItem(`lastBreakDuration_${uid}`);
+            if(dur) breakDuration = Number(dur);
+        }
+        if(breakEnd && uid){
+            const elapsedMin = (Date.now() - breakEnd) / 60000;
+            const buffer = 1;
+            const extra = Math.round(elapsedMin - breakDuration - buffer);
+            if(extra > 0 && extra < MAX_DISTRACTION_GAP_MIN){
+                addDistraction(uid, extra);
+            }
+            lastBreakEndTime = null;
+            localStorage.removeItem(`lastBreakEnd_${uid}`);
+            localStorage.removeItem(`lastBreakDuration_${uid}`);
+        }
+    }
+
     timerRunning = true;
 
     setBuddyMood('happy');
@@ -745,10 +830,7 @@ function startPomodoro(){
             }
 
             const taskId = selectedTask ? selectedTask.id : null;
-
-            saveSessionToBackend(currentMode, sessionMode, taskId).then(ok => {
-                if(ok) loadStatsFromBackend();
-            });
+            const taskTitle = selectedTask ? selectedTask.title : null;
 
             /* =========================
                UI FEEDBACK
@@ -785,32 +867,97 @@ function startPomodoro(){
                 'success'
             );
 
-            /* PREGUNTAR SI COMPLETÓ LA TAREA */
+            if(sessionMode === 'break' || sessionMode === 'long-break'){
+                lastBreakEndTime = Date.now();
+                const uid = getCurrentUserId();
+                if(uid){
+                    localStorage.setItem(`lastBreakEnd_${uid}`, String(lastBreakEndTime));
+                    localStorage.setItem(`lastBreakDuration_${uid}`, String(currentMode));
+                }
+            }
 
-            if(selectedTask){
+            const isBreak = sessionMode === 'break' || sessionMode === 'long-break';
+
+            if(isBreak){
+
+                saveSessionToBackend(currentMode, sessionMode).then(ok => {
+                    if(ok) loadStatsFromBackend();
+                });
+                if(savedTimerState){
+                    restoreTimerState();
+                } else {
+                    resetToDefaultPomodoro();
+                }
+                awaySeconds = 0;
+                return;
+
+            }
+
+            /* =========================
+               AWAY TIME QUESTION
+            ========================= */
+
+            function handleAwayAndProceed(awayWasDistraction) {
+                const awayMin = Math.round(awaySeconds / 60);
+                if(awayWasDistraction && awayMin > 0){
+                    const uid = getCurrentUserId();
+                    if(uid) addDistraction(uid, awayMin);
+                }
+
+                /* =========================
+                   TASK QUESTION
+                ========================= */
+
+                if(selectedTask){
+
+                    showConfirmToast(
+                        `¿Completaste "${selectedTask.title}"?`,
+                        async () => {
+                            await saveSessionToBackend(currentMode, sessionMode, taskId, taskTitle, true, awayMin);
+                            await deleteTask(selectedTask.id);
+                            selectedTask = null;
+                            if(focusSubtitle){
+                                focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                                focusSubtitle.classList.remove('task-active');
+                            }
+                            resetToDefaultPomodoro();
+                            loadStatsFromBackend();
+                            awaySeconds = 0;
+                        },
+                        async () => {
+                            await saveSessionToBackend(currentMode, sessionMode, taskId, taskTitle, false, awayMin);
+                            loadStatsFromBackend();
+                            selectedTask = null;
+                            if(focusSubtitle){
+                                focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                                focusSubtitle.classList.remove('task-active');
+                            }
+                            resetToDefaultPomodoro();
+                            awaySeconds = 0;
+                        }
+                    );
+
+                } else {
+
+                    saveSessionToBackend(currentMode, sessionMode, null, null, false, awayMin).then(ok => {
+                        if(ok) loadStatsFromBackend();
+                    });
+                    resetToDefaultPomodoro();
+                    awaySeconds = 0;
+
+                }
+            }
+
+            const awayMin = Math.round(awaySeconds / 60);
+            if(awayMin > 0){
                 showConfirmToast(
-                    `¿Completaste "${selectedTask.title}"?`,
-                    async () => {
-                        await updateTask(selectedTask.id, { completed: true });
-                        selectedTask = null;
-                        if(focusSubtitle){
-                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
-                            focusSubtitle.classList.remove('task-active');
-                        }
-                        resetPomodoro();
-                        fetchTasks();
-                    },
-                    () => {
-                        selectedTask = null;
-                        if(focusSubtitle){
-                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
-                            focusSubtitle.classList.remove('task-active');
-                        }
-                        resetPomodoro();
-                    }
+                    `Estuviste ${awayMin} min fuera de la página ¿ese tiempo fue trabajo o distracción?`,
+                    () => handleAwayAndProceed(false),
+                    () => handleAwayAndProceed(true),
+                    { timeoutMs: 10000, confirmLabel: 'Trabajo 👍', cancelLabel: 'Distracción 😅' }
                 );
             } else {
-                resetPomodoro();
+                handleAwayAndProceed(false);
             }
 
         }
@@ -868,19 +1015,132 @@ function resetPomodoro(){
 }
 
 /* =========================
+   RESTORE STUDY STATE AFTER BREAK
+========================= */
+
+function restoreTimerState(){
+
+    if(!savedTimerState) return;
+
+    currentMode = savedTimerState.currentMode;
+    totalTime = savedTimerState.totalTime;
+    timeLeft = savedTimerState.timeLeft;
+    selectedTask = savedTimerState.selectedTask;
+
+    savedTimerState = null;
+
+    clearInterval(timerInterval);
+
+    timerRunning = false;
+
+    document.querySelector('.circle')
+        ?.classList.remove('running');
+
+    updateTimer();
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar
+    `;
+
+    sessionStatus.innerHTML = `
+        <span></span>
+        Modo enfoque
+    `;
+
+    focusModeLabel.textContent = 'Enfocado';
+
+    progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    if(selectedTask){
+
+        focusSubtitle.textContent = selectedTask.title;
+        focusSubtitle.classList.add('task-active');
+
+    } else {
+
+        focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+        focusSubtitle.classList.remove('task-active');
+
+    }
+
+    flowCards.forEach(c => c.classList.remove('active'));
+
+    if(currentMode === 25){
+
+        const pomoCard =
+            document.querySelector('.flow-card[data-time="25"]');
+
+        if(pomoCard) pomoCard.classList.add('active');
+
+    }
+
+}
+
+/* =========================
+   RESET TO DEFAULT POMODORO
+========================= */
+
+function resetToDefaultPomodoro(){
+
+    clearInterval(timerInterval);
+
+    timerRunning = false;
+
+    document.querySelector('.circle')
+        ?.classList.remove('running');
+
+    currentMode = 25;
+    totalTime = 25 * 60;
+    timeLeft = totalTime;
+
+    updateTimer();
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar
+    `;
+
+    sessionStatus.innerHTML = `
+        <span></span>
+        Modo enfoque
+    `;
+
+    focusModeLabel.textContent = 'Enfocado';
+
+    progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+    focusSubtitle.classList.remove('task-active');
+
+    flowCards.forEach(c => c.classList.remove('active'));
+
+    const pomoCard =
+        document.querySelector('.flow-card[data-time="25"]');
+
+    if(pomoCard) pomoCard.classList.add('active');
+
+    selectedTask = null;
+
+}
+
+/* =========================
    SAVE SESSION TO BACKEND
 ========================= */
 
-async function saveSessionToBackend(minutes, mode, taskId){
+async function saveSessionToBackend(minutes, mode, taskId, taskTitle = null, taskCompleted = false, awayMinutes = 0){
 
     try{
 
         const body = {
             duration_minutes: minutes,
             mode: mode || 'pomodoro',
+            task_completed: taskCompleted,
+            away_minutes: awayMinutes,
         };
 
         if(taskId) body.task_id = taskId;
+        if(taskTitle) body.task_title = taskTitle;
 
         const res = await fetch(`${API_URL}/sessions`, {
             method: 'POST',
@@ -1040,6 +1300,7 @@ async function loadStatsFromBackend(){
 
             updateProductivityChart(sessions);
             renderMiniStreak(sessions);
+            renderSessions();
 
         }
 
@@ -1065,10 +1326,12 @@ function updateProductivityChart(sessions){
     let deepMinutes = 0;
     let lightMinutes = 0;
     let breakMinutes = 0;
+    let pomodoroCount = 0;
 
     sessions.forEach(s => {
         const mins = s.duration_minutes || 0;
         if(s.mode === 'pomodoro'){
+            pomodoroCount++;
             if(mins > 15){
                 deepMinutes += mins;
             } else {
@@ -1079,14 +1342,22 @@ function updateProductivityChart(sessions){
         }
     });
 
-    const totalMinutes = deepMinutes + lightMinutes + breakMinutes || 1;
-    const focusPct = Math.round(((deepMinutes + lightMinutes) / totalMinutes) * 100);
+    const focusMinutes = deepMinutes + lightMinutes;
+
+    /* CALCULATE DISTRACTIONS FROM TRACKED IDLE TIME */
+
+    const userId = getCurrentUserId();
+    const distractionMinutes = userId ? getWeekDistractions(userId) : 0;
+
+    const totalMinutes = focusMinutes + breakMinutes + distractionMinutes || 1;
+
+    /* CHART DATA — raw minutes, chart.js handles proportions */
 
     studyChart.data.datasets[0].data = [
-        Math.round((deepMinutes / totalMinutes) * 100),
-        Math.round((lightMinutes / totalMinutes) * 100),
-        Math.round((breakMinutes / totalMinutes) * 100),
-        0,
+        deepMinutes,
+        lightMinutes,
+        breakMinutes,
+        distractionMinutes,
     ];
 
     studyChart.update();
@@ -1097,6 +1368,9 @@ function updateProductivityChart(sessions){
         document.querySelector('.productivity-score strong');
 
     if(scoreEl){
+        const focusPct = totalMinutes > 0
+            ? Math.round((focusMinutes / totalMinutes) * 100)
+            : 0;
         scoreEl.textContent = `${focusPct}%`;
     }
 
@@ -1109,7 +1383,7 @@ function updateProductivityChart(sessions){
         { label: 'Enfoque profundo', minutes: deepMinutes },
         { label: 'Estudio ligero', minutes: lightMinutes },
         { label: 'Descansos', minutes: breakMinutes },
-        { label: 'Distracciones', minutes: 0 },
+        { label: 'Distracciones', minutes: distractionMinutes },
     ];
 
     categories.forEach((cat, i) => {
@@ -1155,24 +1429,29 @@ function updateProductivityChart(sessions){
     const insightEl = document.getElementById('insightText');
     if(!insightEl) return;
 
-    const sessionCount = sessions.length;
-    const focusMinutes = deepMinutes + lightMinutes;
+    const pomodoroSessionCount = pomodoroCount;
 
-    if(sessionCount === 0){
+    if(pomodoroSessionCount === 0 && breakMinutes === 0 && distractionMinutes === 0){
         insightEl.textContent = 'Completa tu primera sesión para generar insights de productividad.';
     } else if(focusMinutes === 0){
         insightEl.textContent = 'Aún no has registrado sesiones de enfoque. ¡Activa el Pomodoro!';
-    } else if(sessionCount < 3){
-        insightEl.textContent = `Buen comienzo: ${focusMinutes} min de enfoque en ${sessionCount} sesiones. Sigue así para ver patrones.`;
+    } else if(pomodoroSessionCount < 3){
+        insightEl.textContent = `Buen comienzo: ${focusMinutes} min de enfoque en ${pomodoroSessionCount} sesiones. Sigue así para ver patrones.`;
     } else {
-        const totalH = Math.floor(totalMinutes / 60);
-        const totalM = totalMinutes % 60;
         const focusH = Math.floor(focusMinutes / 60);
         const focusM = focusMinutes % 60;
-        const pct = Math.round((focusMinutes / totalMinutes) * 100);
-        insightEl.textContent =
-            `${sessionCount} sesiones · ${totalH > 0 ? `${totalH}h ` : ''}${totalM}m total · ` +
-            `${focusH > 0 ? `${focusH}h ` : ''}${focusM}m de enfoque (${pct}%)`;
+        const focusPct = totalMinutes > 0
+            ? Math.round((focusMinutes / totalMinutes) * 100)
+            : 0;
+        let text =
+            `${pomodoroSessionCount} sesiones de estudio · ` +
+            `${focusH > 0 ? `${focusH}h ` : ''}${focusM}m de enfoque (${focusPct}%)`;
+        if(distractionMinutes > 0){
+            const distH = Math.floor(distractionMinutes / 60);
+            const distM = distractionMinutes % 60;
+            text += ` · ${distH > 0 ? `${distH}h ` : ''}${distM}m distraído`;
+        }
+        insightEl.textContent = text;
     }
 
 }
@@ -1398,6 +1677,17 @@ function selectFlowCard(card){
 
     if(!Number.isNaN(minutes)){
 
+        if(minutes === 5 && !savedTimerState){
+            savedTimerState = {
+                timeLeft,
+                totalTime,
+                currentMode,
+                selectedTask,
+            };
+        } else if(minutes !== 5){
+            savedTimerState = null;
+        }
+
         selectedTask = null;
         applySessionMode(minutes);
 
@@ -1604,7 +1894,7 @@ function createTaskElement(task){
 
     checkbox.addEventListener('change', () => {
 
-        updateTask(task.id, {
+        updateTask(task.id, task, {
             completed: checkbox.checked,
         });
 
@@ -1619,7 +1909,7 @@ function createTaskElement(task){
 
             e.stopPropagation();
 
-            deleteTask(task.id);
+            deleteTask(task.id, task);
 
         });
 
@@ -1716,10 +2006,14 @@ async function createTask(payload){
 
 }
 
-async function updateTask(taskId, payload){
+async function updateTask(taskId, taskData = null, payload){
 
-    const currentTask =
-        tasks.find(task => task.id === Number(taskId));
+    if(arguments.length === 2){
+        payload = taskData;
+        taskData = null;
+    }
+
+    const currentTask = taskData || tasks.find(t => t.id === Number(taskId));
 
     if(!currentTask) return;
 
@@ -1735,14 +2029,18 @@ async function updateTask(taskId, payload){
                 }),
             });
 
+        if(handleUnauthorized(response)) return;
+
         if(response.ok){
 
             await fetchTasks();
 
         } else {
 
+            const data = await response.json().catch(() => ({}));
+
             showToast(
-                'Error al actualizar la tarea',
+                data.detail || 'Error al actualizar la tarea',
                 'error'
             );
 
@@ -1761,12 +2059,9 @@ async function updateTask(taskId, payload){
 
 }
 
-async function deleteTask(taskId){
+async function deleteTask(taskId, taskData = null){
 
-    const task =
-        tasks.find(t => t.id === Number(taskId));
-
-    if(!task) return;
+    const task = taskData || tasks.find(t => t.id === Number(taskId));
 
     try{
 
@@ -1776,43 +2071,51 @@ async function deleteTask(taskId){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(response)) return;
+
         if(response.ok){
 
-            showUndoToast('Tarea eliminada', async () => {
+            if(task){
 
-                try{
+                showUndoToast('Tarea eliminada', async () => {
 
-                    await fetch(`${API_URL}/tasks`, {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({
-                            title: task.title,
-                            due_date: task.due_date,
-                            priority: task.priority,
-                            duration_minutes: task.duration_minutes,
-                            completed: task.completed,
-                        }),
-                    });
+                    try{
 
-                    showToast('Tarea restaurada', 'success');
+                        await fetch(`${API_URL}/tasks`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({
+                                title: task.title,
+                                due_date: task.due_date,
+                                priority: task.priority,
+                                duration_minutes: task.duration_minutes,
+                                completed: task.completed,
+                            }),
+                        });
 
-                    await fetchTasks();
+                        showToast('Tarea restaurada', 'success');
 
-                }
+                        await fetchTasks();
 
-                catch(err){
+                    }
 
-                    showToast('No se pudo restaurar la tarea', 'error');
+                    catch(err){
 
-                }
+                        showToast('No se pudo restaurar la tarea', 'error');
 
-            });
+                    }
+
+                });
+
+            }
 
             await fetchTasks();
 
         } else {
 
-            showToast('Error al eliminar la tarea', 'error');
+            const data = await response.json().catch(() => ({}));
+
+            showToast(data.detail || 'Error al eliminar la tarea', 'error');
 
         }
 
@@ -1890,6 +2193,8 @@ function renderAllTasks(){
 function selectTaskFromCard(task){
     selectedTask = task;
     flowCards.forEach(c => c.classList.remove('active'));
+
+    savedTimerState = null;
 
     const mins = task.duration_minutes || 25;
     currentMode = mins;
@@ -1990,7 +2295,9 @@ async function renderSessions(){
 
         sessions.forEach(s => {
 
-            const date = new Date(s.created_at + 'Z');
+            const raw = s.created_at;
+            const hasTz = /[Zz]$|[+-]\d{2}:\d{2}$/.test(raw);
+            const date = new Date(hasTz ? raw : raw + 'Z');
 
             const dateStr =
                 date.toLocaleDateString('es-CO', {
@@ -2020,11 +2327,23 @@ async function renderSessions(){
 
             row.className = 'session-row';
 
+            let taskHtml = '';
+            if(s.task_title){
+                taskHtml = s.task_completed
+                    ? `<span class="session-task completed">📋 ${s.task_title} ✅</span>`
+                    : `<span class="session-task">📋 ${s.task_title}</span>`;
+            }
+
+            const awayHtml = s.away_minutes > 0
+                ? `<span class="session-away" style="font-size:12px;color:#9ea4cf;">· ${s.away_minutes} min fuera</span>`
+                : '';
+
             row.innerHTML = `
                 <span class="session-date">${dateStr} · ${timeStr}</span>
+                ${taskHtml}
                 <span class="session-duration">${s.duration_minutes} min</span>
                 <span class="session-mode ${modeClass}">${modeLabel}</span>
-                <i class="ri-checkbox-circle-fill" style="color:#4cff88;font-size:18px;"></i>
+                ${awayHtml}
             `;
 
             list.appendChild(row);
@@ -2264,9 +2583,9 @@ if(chartCanvas && window.Chart){
         data: {
 
             labels: [
-                'Enfoque',
-                'Descansos',
+                'Enfoque profundo',
                 'Estudio ligero',
+                'Descansos',
                 'Distracciones'
             ],
 
@@ -2590,9 +2909,14 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('visibilitychange', () => {
 
-    if(document.hidden && timerRunning){
+    if(document.hidden && timerRunning && !awayInterval){
 
-        pausePomodoro();
+        awayInterval = setInterval(() => { awaySeconds++; }, 1000);
+
+    } else if(!document.hidden && awayInterval){
+
+        clearInterval(awayInterval);
+        awayInterval = null;
 
     }
 

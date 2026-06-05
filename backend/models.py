@@ -35,6 +35,9 @@ class Session(Base):
     duration_minutes = Column(Integer, default=25)
     mode = Column(String, default="pomodoro")
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    task_title = Column(String, nullable=True)
+    task_completed = Column(Boolean, default=False)
+    away_minutes = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

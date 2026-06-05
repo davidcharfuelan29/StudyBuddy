@@ -45,6 +45,7 @@ backend/
   auth.py
   database.py
   main.py
+  migrate_created_at.py
   models.py
   schemas.py
 frontend/
@@ -79,6 +80,7 @@ frontend/
   login.js
   splash.css
   splash.js
+.env.example
 .gitignore
 README.md
 requirements.txt
@@ -89,6 +91,399 @@ This section contains the contents of the repository's files.
 
 <file path="backend/__init__.py">
 
+</file>
+
+<file path="backend/migrate_created_at.py">
+from sqlalchemy import text
+from .database import SessionLocal, engine
+
+
+def run_migration():
+    print("Migrando created_at de String a DateTime...")
+    with engine.connect() as conn:
+        conn.execute(
+            text("""
+                ALTER TABLE sessions
+                ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE
+                USING
+                    CASE
+                        WHEN created_at IS NULL OR created_at = '' THEN NOW()
+                        ELSE created_at::timestamp with time zone
+                    END
+            """)
+        )
+
+        conn.execute(
+            text("""
+                ALTER TABLE sessions
+                ALTER COLUMN created_at SET DEFAULT NOW()
+            """)
+        )
+
+        conn.execute(
+            text("""
+                ALTER TABLE sessions
+                ALTER COLUMN created_at SET NOT NULL
+            """)
+        )
+
+        conn.commit()
+        print("Migración completada exitosamente.")
+
+
+if __name__ == "__main__":
+    run_migration()
+</file>
+
+<file path="frontend/assets/iconos/icon-analytics.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M14 50H50" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <rect x="18" y="34" width="6" height="12" rx="2" fill="#A855F7"/>
+  <rect x="30" y="26" width="6" height="20" rx="2" fill="#A855F7"/>
+  <rect x="42" y="18" width="6" height="28" rx="2" fill="#A855F7"/>
+  <path d="M20 24L32 16L44 10" stroke="#A855F7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-eye.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2 12C4.5 7.5 8 5 12 5C16 5 19.5 7.5 22 12C19.5 16.5 16 19 12 19C8 19 4.5 16.5 2 12Z" stroke="#C4B5FD" stroke-width="1.8" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="3" stroke="#A78BFA" stroke-width="1.8"/>
+  <path d="M4 20L20 4" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-focus.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="18" stroke="#A855F7" stroke-width="4"/>
+  <circle cx="32" cy="32" r="8" stroke="#A855F7" stroke-width="4"/>
+  <path d="M32 32L44 20" stroke="#A855F7" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="44" cy="20" r="4" fill="#A855F7"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-lock.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5" y="10" width="14" height="10" rx="3" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
+  <path d="M8 10V8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8V10" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="12" cy="15" r="1.5" fill="#A78BFA"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-mail.svg">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="3" y="5" width="18" height="14" rx="4" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
+  <path d="M5 7L12 13L19 7" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</file>
+
+<file path="frontend/assets/iconos/icon-task.svg">
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="14" y="10" width="36" height="44" rx="8" stroke="#A855F7" stroke-width="3"/>
+  <rect x="24" y="6" width="16" height="8" rx="4" fill="#A855F7"/>
+  <path d="M22 24H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 34H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 44H34" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
+</svg>
+</file>
+
+<file path="frontend/splash.css">
+:root {
+    --bg-dark: #0b0f2a;
+    --primary: #7c5cff;
+    --primary-glow: #9b7bff;
+    --text-light: #ffffff;
+    --text-muted: #b8b8d1;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #141a3a 0%, var(--bg-dark) 70%);
+    font-family: "Poppins", sans-serif;
+    color: var(--text-light);
+    overflow: hidden;
+}
+
+/* PARTICULAS */
+
+#particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+/* CONTENEDOR */
+
+.splash-container {
+    position: relative;
+    z-index: 2;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    width: 100%;
+    height: 100vh;
+
+    gap: 0px;
+
+    animation: fadeIn 1s ease forwards;
+}
+
+/* LOGO */
+
+.logo {
+    width: 95px;
+
+    margin-bottom: 8px;
+
+    animation:
+        float 3s ease-in-out infinite,
+        pulseGlow 3s infinite;
+
+    filter: drop-shadow(0 0 18px rgba(124,92,255,0.55));
+}
+
+/* TITULO */
+.title {
+    font-size: 58px;
+
+    font-weight: 700;
+
+    letter-spacing: -1px;
+
+    background: linear-gradient(
+        90deg,
+        #ffffff,
+        #d6cbff,
+        #9b7bff
+    );
+
+    background-size: 200% auto;
+
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation: glowText 5s linear infinite;
+
+    text-shadow:
+        0 0 18px rgba(124,92,255,0.18);
+}
+
+/* SUBTITULO */
+.subtitle {
+    font-size: 16px;
+
+    font-weight: 400;
+
+    color: rgba(255,255,255,0.68);
+
+    letter-spacing: 0.5px;
+}
+
+/* IMAGEN CENTRAL */
+
+.mascot {
+    width: 500px;
+    max-width: 80%;
+
+    margin: 0px 0;
+
+    animation: float 3s ease-in-out infinite;
+
+    filter: drop-shadow(0 0 25px rgba(124, 92, 255, 0.35));
+}
+
+/* TEXTO LOADING */
+
+.loading-text {
+    color: var(--text-light);
+
+    font-size: 13px;
+
+    opacity: 0.75;
+
+    letter-spacing: 0.5px;
+}
+
+/* BARRA */
+
+.loader {
+    width: 360px;
+    height: 10px;
+
+    background: #1a1f3d;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    width: 0%;
+
+    background: linear-gradient(
+        90deg,
+        var(--primary),
+        var(--primary-glow)
+    );
+
+    border-radius: 20px;
+
+    animation: loading 5s ease forwards;
+}
+
+/* ANIMACIONES */
+
+@keyframes loading {
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+@keyframes glowText {
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+@keyframes pulseGlow {
+
+    0% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 28px rgba(124,92,255,0.8));
+    }
+
+    100% {
+        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
+    }
+}
+</file>
+
+<file path="frontend/splash.js">
+const canvas = document.getElementById("particles");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particlesArray = [];
+
+class Particle {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+    }
+
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+    }
+
+    draw() {
+        ctx.fillStyle = "rgba(124, 92, 255, 0.6)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function init() {
+    for (let i = 0; i < 80; i++) {
+        particlesArray.push(new Particle());
+    }
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particlesArray.forEach(particle => {
+        particle.update();
+        particle.draw();
+    });
+    requestAnimationFrame(animate);
+}
+
+init();
+animate();
+
+
+// 🔁 Redirección del splash
+const SPLASH_TIME = 5000;
+
+setTimeout(() => {
+    document.body.style.transition = "opacity 0.8s ease";
+    document.body.style.opacity = "0";
+
+    setTimeout(() => {
+        window.location.href = "login.html";
+    }, 800);
+
+}, SPLASH_TIME);
+
+
+// 📏 Ajustar tamaño si cambia la ventana
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+</file>
+
+<file path=".env.example">
+DATABASE_URL=postgresql://usuario:password@localhost:5432/studybuddy
+SECRET_KEY=cambia-esta-clave-por-una-segura
+CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
 </file>
 
 <file path="backend/auth.py">
@@ -105,9 +500,9 @@ from .schemas import TokenData
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    import warnings
-    warnings.warn("SECRET_KEY no configurada en .env. Usando clave insegura de desarrollo. Configúrala para producción.")
-    SECRET_KEY = "studybuddy-dev-secret-change-in-prod"
+    raise RuntimeError(
+        "SECRET_KEY no configurada. Define esta variable en .env antes de iniciar StudyBuddy."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
@@ -176,149 +571,15 @@ import os
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL no esta configurada. Define esta variable en .env antes de iniciar StudyBuddy."
+    )
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 Base = declarative_base()
-</file>
-
-<file path="backend/schemas.py">
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-
-# --- TASKS ---
-
-class TaskCreate(BaseModel):
-    title: str
-    due_date: Optional[str] = None
-    priority: str = "media"
-    duration_minutes: int = 30
-    completed: bool = False
-
-class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    due_date: Optional[str] = None
-    priority: Optional[str] = None
-    duration_minutes: Optional[int] = None
-    completed: Optional[bool] = None
-
-class TaskResponse(BaseModel):
-    id: int
-    title: str
-    due_date: Optional[str] = None
-    priority: str
-    duration_minutes: int
-    completed: bool
-    user_id: Optional[int] = None
-
-    model_config = {"from_attributes": True}
-
-
-# --- USERS ---
-
-class UserCreate(BaseModel):
-    email: str
-    password: str
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-class UserResponse(BaseModel):
-    id: int
-    email: str
-
-    model_config = {"from_attributes": True}
-
-
-# --- AUTH ---
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserResponse
-
-class TokenData(BaseModel):
-    user_id: Optional[int] = None
-
-
-# --- SESSION ---
-
-class SessionCreate(BaseModel):
-    duration_minutes: int
-    mode: str = "pomodoro"
-
-class SessionResponse(BaseModel):
-    id: int
-    user_id: int
-    duration_minutes: int
-    mode: str
-    created_at: str
-
-    model_config = {"from_attributes": True}
-
-
-# --- STATS ---
-
-class StatsResponse(BaseModel):
-    total_sessions: int
-    total_minutes: int
-    current_streak: int
-    xp: int
-    level: int
-</file>
-
-<file path="frontend/assets/iconos/icon-analytics.svg">
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M14 50H50" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
-  <rect x="18" y="34" width="6" height="12" rx="2" fill="#A855F7"/>
-  <rect x="30" y="26" width="6" height="20" rx="2" fill="#A855F7"/>
-  <rect x="42" y="18" width="6" height="28" rx="2" fill="#A855F7"/>
-  <path d="M20 24L32 16L44 10" stroke="#A855F7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-</file>
-
-<file path="frontend/assets/iconos/icon-eye.svg">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M2 12C4.5 7.5 8 5 12 5C16 5 19.5 7.5 22 12C19.5 16.5 16 19 12 19C8 19 4.5 16.5 2 12Z" stroke="#C4B5FD" stroke-width="1.8" stroke-linejoin="round"/>
-  <circle cx="12" cy="12" r="3" stroke="#A78BFA" stroke-width="1.8"/>
-  <path d="M4 20L20 4" stroke="#8B5CF6" stroke-width="1.8" stroke-linecap="round"/>
-</svg>
-</file>
-
-<file path="frontend/assets/iconos/icon-focus.svg">
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="18" stroke="#A855F7" stroke-width="4"/>
-  <circle cx="32" cy="32" r="8" stroke="#A855F7" stroke-width="4"/>
-  <path d="M32 32L44 20" stroke="#A855F7" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="44" cy="20" r="4" fill="#A855F7"/>
-</svg>
-</file>
-
-<file path="frontend/assets/iconos/icon-lock.svg">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="5" y="10" width="14" height="10" rx="3" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
-  <path d="M8 10V8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8V10" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round"/>
-  <circle cx="12" cy="15" r="1.5" fill="#A78BFA"/>
-</svg>
-</file>
-
-<file path="frontend/assets/iconos/icon-mail.svg">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="3" y="5" width="18" height="14" rx="4" stroke="#C4B5FD" stroke-width="1.8" fill="rgba(255,255,255,0.02)"/>
-  <path d="M5 7L12 13L19 7" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-</file>
-
-<file path="frontend/assets/iconos/icon-task.svg">
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="14" y="10" width="36" height="44" rx="8" stroke="#A855F7" stroke-width="3"/>
-  <rect x="24" y="6" width="16" height="8" rx="4" fill="#A855F7"/>
-  <path d="M22 24H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
-  <path d="M22 34H42" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
-  <path d="M22 44H34" stroke="#A855F7" stroke-width="3" stroke-linecap="round"/>
-</svg>
 </file>
 
 <file path="frontend/login.css">
@@ -422,7 +683,6 @@ body {
     flex: 1;
     padding: 50px;
     position: relative;
-    overflow: hidden;
 
     background:
     linear-gradient(
@@ -515,19 +775,14 @@ body {
 
 .features {
     position: absolute;
-
     bottom: -255px;
     left: 50%;
-
     transform: translateX(-50%);
-
     width: 80%;
-
     display: flex;
-    justify-content: center ; 
+    justify-content: center;
     gap: 15px;
     align-items: center;
-
     z-index: 3;
 }
 
@@ -835,7 +1090,7 @@ button:hover {
     color: #9ca3af;
 }
 
-.switch span {
+#switchMode {
     color: #a78bfa;
     cursor: pointer;
 }
@@ -873,6 +1128,7 @@ button:hover {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StudyBuddy</title>
 <link rel="stylesheet" href="login.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -925,7 +1181,7 @@ button:hover {
         Inicia sesión para continuar con tu productividad.
         </p>
 
-        <form id="form">
+        <form id="form" novalidate>
 
             <div class="input-group">
                 <img src="assets/iconos/icon-mail.svg" class="input-icon">
@@ -958,7 +1214,9 @@ button:hover {
         </form>
 
         <p class="switch">
-            ¿No tienes cuenta? <span id="switchMode">Regístrate</span>
+            <span id="switchLoginText">¿No tienes cuenta?</span>
+            <span id="switchRegisterText" style="display:none">¿Ya tienes cuenta?</span>
+            <span id="switchMode">Regístrate</span>
         </p>
 
         <p id="message"></p>
@@ -972,453 +1230,107 @@ button:hover {
 </html>
 </file>
 
-<file path="frontend/splash.css">
-:root {
-    --bg-dark: #0b0f2a;
-    --primary: #7c5cff;
-    --primary-glow: #9b7bff;
-    --text-light: #ffffff;
-    --text-muted: #b8b8d1;
-}
+<file path="backend/schemas.py">
+from pydantic import BaseModel, EmailStr, Field
+from typing import Literal, Optional
+from datetime import datetime
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+# --- TASKS ---
 
-body {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: radial-gradient(circle at center, #141a3a 0%, var(--bg-dark) 70%);
-    font-family: "Poppins", sans-serif;
-    color: var(--text-light);
-    overflow: hidden;
-}
+class TaskCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+    due_date: Optional[str] = None
+    priority: Literal["alta", "media", "baja"] = "media"
+    duration_minutes: int = Field(default=30, ge=5, le=480)
+    completed: bool = False
 
-/* PARTICULAS */
+class TaskUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=180)
+    due_date: Optional[str] = None
+    priority: Optional[Literal["alta", "media", "baja"]] = None
+    duration_minutes: Optional[int] = Field(default=None, ge=5, le=480)
+    completed: Optional[bool] = None
 
-#particles {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-}
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    due_date: Optional[str] = None
+    priority: str
+    duration_minutes: int
+    completed: bool
+    user_id: Optional[int] = None
 
-/* CONTENEDOR */
+    model_config = {"from_attributes": True}
 
-.splash-container {
-    position: relative;
-    z-index: 2;
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+# --- USERS ---
 
-    text-align: center;
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
 
-    width: 100%;
-    height: 100vh;
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
 
-    gap: 0px;
+class UserResponse(BaseModel):
+    id: int
+    email: str
 
-    animation: fadeIn 1s ease forwards;
-}
+    model_config = {"from_attributes": True}
 
-/* LOGO */
 
-.logo {
-    width: 95px;
+# --- AUTH ---
 
-    margin-bottom: 8px;
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
-    animation:
-        float 3s ease-in-out infinite,
-        pulseGlow 3s infinite;
+class TokenData(BaseModel):
+    user_id: Optional[int] = None
 
-    filter: drop-shadow(0 0 18px rgba(124,92,255,0.55));
-}
 
-/* TITULO */
-.title {
-    font-size: 58px;
+# --- SESSION ---
 
-    font-weight: 700;
+class SessionCreate(BaseModel):
+    duration_minutes: int = Field(ge=1, le=240)
+    mode: Literal["pomodoro", "break", "short-break", "long-break"] = "pomodoro"
+    task_id: Optional[int] = None
 
-    letter-spacing: -1px;
+class SessionResponse(BaseModel):
+    id: int
+    user_id: int
+    duration_minutes: int
+    mode: str
+    task_id: Optional[int] = None
+    created_at: datetime
 
-    background: linear-gradient(
-        90deg,
-        #ffffff,
-        #d6cbff,
-        #9b7bff
-    );
+    model_config = {"from_attributes": True}
 
-    background-size: 200% auto;
 
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+# --- STATS ---
 
-    animation: glowText 5s linear infinite;
+class StatsResponse(BaseModel):
+    total_sessions: int
+    total_minutes: int
+    current_streak: int
+    xp: int
+    level: int
+    light_sessions: int = 0
+    deep_sessions: int = 0
 
-    text-shadow:
-        0 0 18px rgba(124,92,255,0.18);
-}
 
-/* SUBTITULO */
-.subtitle {
-    font-size: 16px;
+# --- SETTINGS ---
 
-    font-weight: 400;
+class SettingsResponse(BaseModel):
+    data: dict
 
-    color: rgba(255,255,255,0.68);
+    model_config = {"from_attributes": True}
 
-    letter-spacing: 0.5px;
-}
 
-/* IMAGEN CENTRAL */
-
-.mascot {
-    width: 500px;
-    max-width: 80%;
-
-    margin: 0px 0;
-
-    animation: float 3s ease-in-out infinite;
-
-    filter: drop-shadow(0 0 25px rgba(124, 92, 255, 0.35));
-}
-
-/* TEXTO LOADING */
-
-.loading-text {
-    color: var(--text-light);
-
-    font-size: 13px;
-
-    opacity: 0.75;
-
-    letter-spacing: 0.5px;
-}
-
-/* BARRA */
-
-.loader {
-    width: 360px;
-    height: 10px;
-
-    background: #1a1f3d;
-
-    border-radius: 20px;
-
-    overflow: hidden;
-}
-
-.progress {
-    height: 100%;
-    width: 0%;
-
-    background: linear-gradient(
-        90deg,
-        var(--primary),
-        var(--primary-glow)
-    );
-
-    border-radius: 20px;
-
-    animation: loading 5s ease forwards;
-}
-
-/* ANIMACIONES */
-
-@keyframes loading {
-    to {
-        width: 100%;
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.96);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes float {
-    0% {
-        transform: translateY(0px);
-    }
-
-    50% {
-        transform: translateY(-10px);
-    }
-
-    100% {
-        transform: translateY(0px);
-    }
-}
-@keyframes glowText {
-    0% {
-        background-position: 0% center;
-    }
-
-    100% {
-        background-position: 200% center;
-    }
-}
-@keyframes pulseGlow {
-
-    0% {
-        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
-    }
-
-    50% {
-        filter: drop-shadow(0 0 28px rgba(124,92,255,0.8));
-    }
-
-    100% {
-        filter: drop-shadow(0 0 12px rgba(124,92,255,0.35));
-    }
-}
-</file>
-
-<file path="frontend/splash.js">
-const canvas = document.getElementById("particles");
-const ctx = canvas.getContext("2d");
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-let particlesArray = [];
-
-class Particle {
-    constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 2;
-        this.speedX = (Math.random() - 0.5) * 0.5;
-        this.speedY = (Math.random() - 0.5) * 0.5;
-    }
-
-    update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-    }
-
-    draw() {
-        ctx.fillStyle = "rgba(124, 92, 255, 0.6)";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-function init() {
-    for (let i = 0; i < 80; i++) {
-        particlesArray.push(new Particle());
-    }
-}
-
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particlesArray.forEach(particle => {
-        particle.update();
-        particle.draw();
-    });
-    requestAnimationFrame(animate);
-}
-
-init();
-animate();
-
-
-// 🔁 Redirección del splash
-const SPLASH_TIME = 5000;
-
-setTimeout(() => {
-    document.body.style.transition = "opacity 0.8s ease";
-    document.body.style.opacity = "0";
-
-    setTimeout(() => {
-        window.location.href = "login.html";
-    }, 800);
-
-}, SPLASH_TIME);
-
-
-// 📏 Ajustar tamaño si cambia la ventana
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
-</file>
-
-<file path="frontend/login.js">
-const API_URL = "http://127.0.0.1:8000";
-
-let isLogin = true;
-
-// 👁️ mostrar contraseña
-function togglePassword() {
-    const input = document.getElementById("password");
-    input.type = input.type === "password" ? "text" : "password";
-}
-
-// 🔁 cambiar modo
-document.getElementById("switchMode").onclick = () => {
-    isLogin = !isLogin;
-
-    document.getElementById("title").textContent =
-        isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
-
-    document.getElementById("submitBtn").textContent =
-        isLogin ? "Iniciar sesión" : "Registrarse";
-};
-
-// 🚀 submit
-document.getElementById("form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const endpoint = isLogin ? "/login" : "/register";
-
-    const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        document.getElementById("message").textContent = data.detail;
-        return;
-    }
-
-    if (isLogin) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = "dashboard.html";
-    } else {
-        document.getElementById("message").style.color = "#34d399";
-        document.getElementById("message").textContent =
-            "Cuenta creada ✔ ahora inicia sesión";
-    }
-});
-</file>
-
-<file path=".gitignore">
-.venv
-.vscode
-__pycache__
-.env
-</file>
-
-<file path="requirements.txt">
-annotated-doc==0.0.4
-annotated-types==0.7.0
-anyio==4.13.0
-bcrypt==4.0.1
-certifi==2026.4.22
-click==8.3.3
-dnspython==2.8.0
-email-validator==2.3.0
-fastapi==0.136.1
-fastapi-cli==0.0.24
-fastapi-cloud-cli==0.17.1
-fastar==0.11.0
-greenlet==3.5.0
-h11==0.16.0
-httpcore==1.0.9
-httptools==0.7.1
-httpx==0.28.1
-idna==3.13
-Jinja2==3.1.6
-markdown-it-py==4.0.0
-MarkupSafe==3.0.3
-mdurl==0.1.2
-passlib==1.7.4
-psycopg2-binary==2.9.12
-pydantic==2.13.3
-pydantic-extra-types==2.11.1
-pydantic-settings==2.14.0
-pydantic_core==2.46.3
-Pygments==2.20.0
-python-dotenv==1.2.2
-python-jose[cryptography]==3.3.0
-python-multipart==0.0.27
-PyYAML==6.0.3
-rich==15.0.0
-rich-toolkit==0.19.7
-rignore==0.7.6
-sentry-sdk==2.58.0
-shellingham==1.5.4
-SQLAlchemy==2.0.49
-starlette==1.0.0
-typer==0.25.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-urllib3==2.6.3
-uvicorn==0.46.0
-uvloop==0.22.1
-watchfiles==1.1.1
-websockets==16.0
-</file>
-
-<file path="backend/models.py">
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
-from .database import Base
-
-# 🔹 MODELO TASK
-class Task(Base):
-    __tablename__ = "tasks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    due_date = Column(String, nullable=True)
-    priority = Column(String, default="media")
-    duration_minutes = Column(Integer, default=30)
-    completed = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-
-
-# 🔹 MODELO USER
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    password = Column(String)
-
-    tasks = relationship("Task", backref="owner")
-
-
-# 🔹 MODELO SESSION (temporizador Pomodoro)
-class Session(Base):
-    __tablename__ = "sessions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    duration_minutes = Column(Integer, default=25)
-    mode = Column(String, default="pomodoro")
-    created_at = Column(String, default=None)
+class SettingsUpdate(BaseModel):
+    data: dict
 </file>
 
 <file path="frontend/index.html">
@@ -1463,8 +1375,371 @@ class Session(Base):
 </html>
 </file>
 
+<file path="frontend/login.js">
+const API_URL = (window.STUDYBUDDY_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, '');
+
+let isLogin = true;
+
+function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
+}
+
+document.getElementById("switchMode").onclick = () => {
+    isLogin = !isLogin;
+
+    document.getElementById("title").textContent =
+        isLogin ? "¡Bienvenido de vuelta! 👋" : "Crea tu cuenta 🚀";
+    document.getElementById("submitBtn").textContent =
+        isLogin ? "Iniciar sesión" : "Registrarse";
+    document.getElementById("switchMode").textContent =
+        isLogin ? "Regístrate" : "Inicia sesión";
+    document.getElementById("switchLoginText").style.display =
+        isLogin ? "inline" : "none";
+    document.getElementById("switchRegisterText").style.display =
+        isLogin ? "none" : "inline";
+    document.getElementById("message").textContent = "";
+};
+
+function getErrorDetail(data) {
+    if (typeof data.detail === "string") return data.detail;
+    if (Array.isArray(data.detail)) {
+        return data.detail.map(e => e.msg).join(". ");
+    }
+    return "Error desconocido";
+}
+
+document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const messageEl = document.getElementById("message");
+    messageEl.textContent = "";
+    messageEl.style.color = "#f87171";
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const submitBtn = document.getElementById("submitBtn");
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Cargando...";
+
+    const endpoint = isLogin ? "/login" : "/register";
+
+    try {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            messageEl.textContent = getErrorDetail(data);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+        }
+
+        if (isLogin) {
+            localStorage.setItem("token", data.access_token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            window.location.href = "dashboard.html";
+        } else {
+            messageEl.style.color = "#34d399";
+            messageEl.textContent = "Cuenta creada ✔ ahora inicia sesión";
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            isLogin = true;
+            document.getElementById("title").textContent = "¡Bienvenido de vuelta! 👋";
+            document.getElementById("submitBtn").textContent = "Iniciar sesión";
+            document.getElementById("switchMode").textContent = "Regístrate";
+            document.getElementById("switchLoginText").style.display = "inline";
+            document.getElementById("switchRegisterText").style.display = "none";
+        }
+    } catch (error) {
+        messageEl.textContent = "Error de conexión. Verifica que el servidor esté corriendo.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+});
+</file>
+
+<file path=".gitignore">
+.venv
+.vscode
+__pycache__
+.env
+repomix-output.xml
+</file>
+
+<file path="README.md">
+# StudyBuddy
+
+Sistema inteligente de productividad y enfoque para estudiantes, con gamificación y mascota virtual.
+
+## Funciones
+
+| Función | Descripción |
+|---------|-------------|
+| **Tareas** | CRUD completo con prioridades (alta/media/baja), fechas, duración estimada y filtro por día |
+| **Pomodoro** | Temporizador de enfoque (25 min) y descanso (5 min) con barra de progreso animada |
+| **Sesiones** | Historial de sesiones completadas almacenado en backend |
+| **Estadísticas** | Total de sesiones, horas, racha actual, XP y nivel |
+| **Calendario** | Vista mensual con navegación y tareas marcadas por día |
+| **Mascota Buddy** | Compañero virtual con 6 estados de ánimo según tu actividad (primera sesión, racha, pausa, etc.) |
+| **Gamificación** | Sistema de XP (50 por sesión), niveles (cada 350 XP) y racha de días consecutivos |
+| **Gráfico de productividad** | Dona de Chart.js con distribución enfoque/descanso |
+| **Autenticación** | Registro e inicio de sesión con JWT (24 h de expiración) |
+
+## Stack
+
+| Capa | Tecnología |
+|------|-----------|
+| Backend | Python 3.11+, FastAPI, SQLAlchemy, PostgreSQL |
+| Frontend | HTML, CSS, JavaScript vanilla (sin frameworks) |
+| Auth | JWT (python-jose) + bcrypt (passlib) |
+| Gráficos | Chart.js |
+| Iconos | Remix Icons |
+
+## Requisitos
+
+- Python 3.11 o superior
+- PostgreSQL
+- Navegador moderno
+
+## Inicio rápido
+
+1.  Clonar el repositorio:
+
+    ```bash
+    git clone <URL>
+    cd studybuddy_agentes
+    ```
+
+2.  Crear y activar entorno virtual:
+
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+3.  Instalar dependencias:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  Configurar variables de entorno: copiar `.env.example` a `.env` y ajustar credenciales:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Variables requeridas en `.env`:
+
+    | Variable | Descripción |
+    |----------|-------------|
+    | `DATABASE_URL` | URL de conexión a PostgreSQL |
+    | `SECRET_KEY` | Clave secreta para firmar JWT |
+    | `CORS_ORIGINS` | Orígenes permitidos (separados por coma) |
+
+5.  Iniciar backend:
+
+    ```bash
+    fastapi dev backend/main.py
+    ```
+
+    Servidor en `http://localhost:8000`
+
+6.  Abrir frontend: navegar a `http://localhost:8000/frontend/index.html`
+
+## Arquitectura
+
+```
+studybuddy_agentes/
+├── backend/
+│   ├── main.py        -- Endpoints de la API REST
+│   ├── models.py      -- Modelos SQLAlchemy (User, Task, Session)
+│   ├── schemas.py     -- Esquemas Pydantic con validaciones
+│   ├── auth.py        -- JWT, dependencia get_current_user
+│   └── database.py    -- Conexión a PostgreSQL, declarative Base
+├── frontend/
+│   ├── index.html     -- Splash animado con partículas
+│   ├── splash.css     -- Estilos del splash
+│   ├── splash.js      -- Animación y redirección
+│   ├── login.html     -- Página de login/registro
+│   ├── login.css      -- Estilos del login
+│   ├── login.js       -- Lógica de autenticación
+│   ├── dashboard.html -- Panel principal con todas las vistas
+│   ├── dashboard.css  -- Estilos del dashboard
+│   ├── dashboard.js   -- Lógica del dashboard (Pomodoro, tareas, etc.)
+│   └── assets/        -- Imágenes, iconos, sonidos
+├── requirements.txt
+├── .env.example       -- Plantilla de variables de entorno
+└── README.md
+```
+
+## API
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| POST | `/register` | No | Crear usuario |
+| POST | `/login` | No | Iniciar sesión, devuelve JWT |
+| GET | `/tasks` | Bearer | Listar tareas del usuario |
+| POST | `/tasks` | Bearer | Crear tarea |
+| GET | `/tasks/{id}` | Bearer | Obtener tarea |
+| PUT | `/tasks/{id}` | Bearer | Actualizar tarea |
+| DELETE | `/tasks/{id}` | Bearer | Eliminar tarea |
+| POST | `/sessions` | Bearer | Guardar sesión completada |
+| GET | `/sessions` | Bearer | Historial de sesiones (últimas 50) |
+| GET | `/stats` | Bearer | Estadísticas: sesiones, minutos, racha, XP, nivel |
+
+## Flujo de autenticación
+
+1.  `POST /register` con email y contraseña → cuenta creada
+2.  `POST /login` con mismas credenciales → devuelve `access_token` + datos del usuario
+3.  Guardar token en `localStorage`
+4.  Enviar token en header `Authorization: Bearer <token>` en cada request protegido
+5.  Token expira en 24 horas
+
+## Validaciones
+
+| Campo | Regla |
+|-------|-------|
+| Email | Formato válido (EmailStr) |
+| Contraseña | 6-128 caracteres |
+| Prioridad | `alta`, `media` o `baja` |
+| Duración tarea | 5-480 minutos |
+| Duración sesión | 1-240 minutos |
+
+## Estado actual
+
+- Backend funcional con 11 endpoints, auth JWT, validaciones Pydantic
+- Dashboard con Pomodoro, tareas, calendario, sesiones, mascota, gráficos
+- Backend como fuente de verdad para estadísticas (XP, nivel, racha)
+- Vistas de Análisis, Logros y Ajustes completadas con datos reales
+- CORS configurable vía entorno
+- .env.example sin credenciales reales
+
+## Pendientes conocidos
+
+- Migraciones de base de datos: reemplazar `ensure_missing_columns()` por Alembic
+- Pruebas automatizadas (backend y frontend)
+- Endpoint de preferencias de usuario para persistir ajustes en servidor
+- La racha se calcula sobre sesiones, no sobre actividad diaria login
+- El sidebar se oculta en mobile sin menú alternativo
+
+## Autor
+
+Carlos David Charfuelan
+</file>
+
+<file path="requirements.txt">
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.13.0
+bcrypt==4.0.1
+certifi==2026.4.22
+click==8.3.3
+dnspython==2.8.0
+email-validator==2.3.0
+fastapi==0.136.1
+fastapi-cli==0.0.24
+fastapi-cloud-cli==0.17.1
+fastar==0.11.0
+greenlet==3.5.0
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.7.1
+httpx==0.28.1
+idna==3.13
+Jinja2==3.1.6
+markdown-it-py==4.0.0
+MarkupSafe==3.0.3
+mdurl==0.1.2
+passlib==1.7.4
+psycopg2-binary==2.9.12
+pydantic==2.13.3
+pydantic-extra-types==2.11.1
+pydantic-settings==2.14.0
+pydantic_core==2.46.3
+Pygments==2.20.0
+python-dotenv==1.2.2
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.27
+PyYAML==6.0.3
+rich==15.0.0
+rich-toolkit==0.19.7
+rignore==0.7.6
+slowapi==0.1.9
+sentry-sdk==2.58.0
+shellingham==1.5.4
+SQLAlchemy==2.0.49
+starlette==1.0.0
+typer==0.25.0
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+urllib3==2.6.3
+uvicorn==0.46.0
+uvloop==0.22.1
+watchfiles==1.1.1
+websockets==16.0
+</file>
+
+<file path="backend/models.py">
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime, func, JSON
+from sqlalchemy.orm import relationship
+from .database import Base
+
+# 🔹 MODELO TASK
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    due_date = Column(String, nullable=True)
+    priority = Column(String, default="media")
+    duration_minutes = Column(Integer, default=30)
+    completed = Column(Boolean, default=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+
+
+# 🔹 MODELO USER
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
+
+    tasks = relationship("Task", backref="owner")
+
+
+# 🔹 MODELO SESSION (temporizador Pomodoro)
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    duration_minutes = Column(Integer, default=25)
+    mode = Column(String, default="pomodoro")
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# 🔹 MODELO USER SETTINGS (preferencias persistidas)
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    data = Column(JSON, default=dict)
+</file>
+
 <file path="backend/main.py">
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
@@ -1472,21 +1747,34 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 from datetime import datetime, timezone
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 
 from .database import SessionLocal, engine, Base
-from .models import Task, User, Session as SessionModel
+from .models import Task, User, Session as SessionModel, UserSettings
 from .schemas import (
     TaskCreate, TaskUpdate, TaskResponse,
     UserCreate, UserLogin, UserResponse,
     Token, SessionCreate, SessionResponse,
-    StatsResponse,
+    StatsResponse, SettingsResponse, SettingsUpdate,
 )
 from .auth import create_access_token, get_current_user
 
 app = FastAPI()
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CORS_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000"
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
 
 app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
 
@@ -1505,7 +1793,10 @@ def get_db():
     finally:
         db.close()
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[StudyBuddy] Error al crear tablas: {e}")
 
 def ensure_missing_columns():
     inspector = inspect(engine)
@@ -1521,6 +1812,7 @@ def ensure_missing_columns():
             "user_id": "INTEGER REFERENCES users(id)",
             "duration_minutes": "INTEGER DEFAULT 25",
             "mode": "VARCHAR DEFAULT 'pomodoro'",
+            "task_id": "INTEGER REFERENCES tasks(id)",
             "created_at": "VARCHAR",
         },
     }
@@ -1539,11 +1831,11 @@ def ensure_missing_columns():
 try:
     ensure_missing_columns()
 except Exception as e:
-    print(f"[StudyBuddy] ensure_missing_columns skipped: {e}")
+    print(f"[StudyBuddy] Error en ensure_missing_columns: {e}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1555,7 +1847,8 @@ def home():
 
 
 @app.post("/register")
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Usuario ya existe")
@@ -1569,7 +1862,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user:
@@ -1683,13 +1977,11 @@ def create_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    now = datetime.now(timezone.utc).isoformat()
-
     new_session = SessionModel(
         user_id=current_user.id,
         duration_minutes=session.duration_minutes,
         mode=session.mode,
-        created_at=now,
+        task_id=session.task_id,
     )
     db.add(new_session)
     db.commit()
@@ -1719,17 +2011,21 @@ def get_stats(
 ):
     sessions = (
         db.query(SessionModel)
-        .filter(SessionModel.user_id == current_user.id)
+        .filter(SessionModel.user_id == current_user.id, SessionModel.mode == 'pomodoro')
         .all()
     )
 
     total_sessions = len(sessions)
     total_minutes = sum(s.duration_minutes for s in sessions)
 
+    light_sessions = sum(1 for s in sessions if (s.duration_minutes or 0) <= 15)
+    deep_sessions = total_sessions - light_sessions
+
     streak = calculate_streak(sessions)
 
-    xp = total_sessions * 50
-    level = (xp // 350) + 1
+    total_xp = total_minutes
+    xp = total_xp % 350
+    level = (total_xp // 350) + 1
 
     return StatsResponse(
         total_sessions=total_sessions,
@@ -1737,7 +2033,37 @@ def get_stats(
         current_streak=streak,
         xp=xp,
         level=level,
+        light_sessions=light_sessions,
+        deep_sessions=deep_sessions,
     )
+
+
+@app.get("/settings", response_model=SettingsResponse)
+def get_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        return SettingsResponse(data={})
+    return SettingsResponse(data=settings.data)
+
+
+@app.put("/settings", response_model=SettingsResponse)
+def update_settings(
+    settings_data: SettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        settings = UserSettings(user_id=current_user.id, data=settings_data.data)
+        db.add(settings)
+    else:
+        settings.data = settings_data.data
+    db.commit()
+    db.refresh(settings)
+    return SettingsResponse(data=settings.data)
 
 
 def calculate_streak(sessions: list) -> int:
@@ -1747,8 +2073,7 @@ def calculate_streak(sessions: list) -> int:
     dates = set()
     for s in sessions:
         if s.created_at:
-            day = s.created_at[:10]
-            dates.add(day)
+            dates.add(s.created_at.date())
 
     if not dates:
         return 0
@@ -1756,18 +2081,16 @@ def calculate_streak(sessions: list) -> int:
     sorted_dates = sorted(dates, reverse=True)
     streak = 1
 
-    from datetime import date, timedelta
+    today = datetime.now(timezone.utc).date()
 
-    today = date.today()
-
-    if sorted_dates[0] < today.isoformat():
-        last = date.fromisoformat(sorted_dates[0])
+    if sorted_dates[0] < today:
+        last = sorted_dates[0]
         if (today - last).days > 1:
             return 0
 
     for i in range(len(sorted_dates) - 1):
-        current = date.fromisoformat(sorted_dates[i])
-        previous = date.fromisoformat(sorted_dates[i + 1])
+        current = sorted_dates[i]
+        previous = sorted_dates[i + 1]
         if (current - previous).days == 1:
             streak += 1
         else:
@@ -1777,7 +2100,7 @@ def calculate_streak(sessions: list) -> int:
 </file>
 
 <file path="frontend/dashboard.js">
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = (window.STUDYBUDDY_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, '');
 
 function getAuthHeaders(){
     const token = localStorage.getItem("token");
@@ -1786,6 +2109,24 @@ function getAuthHeaders(){
         headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;
+}
+
+function getCurrentUserId(){
+    try{
+        const u = JSON.parse(localStorage.getItem('user'));
+        return u && u.id ? u.id : null;
+    } catch { return null; }
+}
+
+function handleUnauthorized(response){
+    if(response.status === 401){
+        showToast('Sesión expirada. Inicia sesión de nuevo.', 'error');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        return true;
+    }
+    return false;
 }
 
 if(!localStorage.getItem("token")){
@@ -1868,6 +2209,42 @@ function showUndoToast(message, onUndo){
         if(toast.parentNode) toast.remove();
 
     }, 5000);
+
+}
+
+function showConfirmToast(message, onConfirm, onCancel){
+
+    const container =
+        document.getElementById('toastContainer');
+
+    if(!container) return;
+
+    const toast =
+        document.createElement('div');
+
+    toast.className = 'toast info has-confirm';
+
+    toast.innerHTML = `
+        <span>${message}</span>
+        <div class="toast-actions">
+            <button class="toast-confirm-yes">Sí, completada</button>
+            <button class="toast-confirm-no">Todavía no</button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    toast.querySelector('.toast-confirm-yes')
+        .addEventListener('click', () => {
+            if(onConfirm) onConfirm();
+            toast.remove();
+        });
+
+    toast.querySelector('.toast-confirm-no')
+        .addEventListener('click', () => {
+            if(onCancel) onCancel();
+            toast.remove();
+        });
 
 }
 
@@ -1978,6 +2355,9 @@ const flowCards =
 const focusModeLabel =
     document.getElementById('focusModeLabel');
 
+const focusSubtitle =
+    document.getElementById('focusSubtitle');
+
 const sidebar =
     document.querySelector('.sidebar');
 
@@ -2047,6 +2427,8 @@ let timerRunning = false;
 
 let timerInterval;
 
+let selectedTask = null;
+
 /* =========================
    TASKS / CALENDAR STATE
 ========================= */
@@ -2066,21 +2448,15 @@ let selectedCalendarDate =
    STATS VARIABLES
 ========================= */
 
-let completedSessions =
-    Number(localStorage.getItem('completedSessions')) || 0;
-
-let totalStudyMinutes =
-    Number(localStorage.getItem('studyMinutes')) || 0;
+let completedSessions = 0;
+let totalStudyMinutes = 0;
 
 /* =========================
    XP SYSTEM
 ========================= */
 
-let currentXP =
-    Number(localStorage.getItem('currentXP')) || 0;
-
-let currentLevel =
-    Number(localStorage.getItem('currentLevel')) || 1;
+let currentXP = 0;
+let currentLevel = 1;
 
 const maxXP = 350;
 
@@ -2088,8 +2464,13 @@ const maxXP = 350;
    SOUND
 ========================= */
 
-const completeSound =
-    new Audio('assets/sonidos/complete.mp3');
+function playCompleteSound(){
+    const sound = new Audio('assets/sonidos/complete.mp3');
+    sound.volume = 0.5;
+    sound.play().catch(() => {
+        setTimeout(() => sound.play().catch(() => {}), 200);
+    });
+}
 
 
 /* =========================
@@ -2189,6 +2570,8 @@ function loadStats(){
 
     const hours =
         Math.floor(totalStudyMinutes / 60);
+    const mins =
+        totalStudyMinutes % 60;
 
     const studyHoursElement =
         document.getElementById('studyHours');
@@ -2196,7 +2579,9 @@ function loadStats(){
     if(studyHoursElement){
 
         studyHoursElement.textContent =
-            `${hours}h`;
+            hours > 0
+                ? `${hours}h ${mins}m`
+                : `${mins}m`;
 
     }
 
@@ -2210,7 +2595,7 @@ function loadStats(){
         const consistency =
             completedSessions > 0
                 ? Math.min(100, Math.round((completedSessions / 7) * 100))
-                : 100;
+                : 0;
 
         consistencyElement.textContent = `${consistency}%`;
 
@@ -2253,6 +2638,134 @@ function loadStats(){
         xpFill.style.width =
             `${xpPercent}%`;
 
+    }
+
+}
+
+/* =========================
+   LOAD PET NAME
+========================= */
+
+function loadPetName(){
+
+    const userId = getCurrentUserId();
+    const name = userId ? localStorage.getItem(`petName_${userId}`) : null;
+    const el = document.getElementById('petNameDisplay');
+    if(el) el.textContent = name || 'Buddy';
+
+}
+
+/* =========================
+   ONBOARDING MODAL
+========================= */
+
+function showOnboardingModal(){
+
+    const overlay = document.getElementById('onboardingOverlay');
+
+    if(!overlay) return;
+
+    overlay.classList.add('is-visible');
+
+    document.getElementById('onboardingSubmit')
+        .addEventListener('click', function onboardingHandler(e){
+
+            e.preventDefault();
+
+            const userId = getCurrentUserId();
+
+            if(!userId) return;
+
+            const nameInput =
+                document.getElementById('onboardingName');
+            const petInput =
+                document.getElementById('onboardingPetName');
+
+            const displayName = nameInput.value.trim() || 'Estudiante';
+            const petName     = petInput.value.trim()   || 'Buddy';
+
+            localStorage.setItem(`displayName_${userId}`, displayName);
+            localStorage.setItem(`petName_${userId}`, petName);
+            localStorage.setItem(`onboarding_${userId}`, 'true');
+
+            syncSettingsToBackend();
+            loadPetName();
+            loadUserInSidebar();
+
+            overlay.classList.remove('is-visible');
+
+        }, { once: true });
+
+}
+
+/* =========================
+   ANALYTICS SECTION
+========================= */
+
+function loadAnalytics(stats, allTasks){
+
+    const sessionsEl = document.getElementById('analyticsSessions');
+    if(sessionsEl && stats){
+        sessionsEl.textContent = stats.total_sessions;
+    }
+
+    const hoursEl = document.getElementById('analyticsHours');
+    if(hoursEl && stats){
+        const h = Math.floor(stats.total_minutes / 60);
+        const m = stats.total_minutes % 60;
+        hoursEl.textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    const pendingEl = document.getElementById('analyticsPendingTasks');
+    if(pendingEl && allTasks){
+        pendingEl.textContent = allTasks.filter(t => !t.completed).length;
+    }
+
+    const streakEl = document.getElementById('analyticsStreak');
+    if(streakEl && stats){
+        const d = stats.current_streak;
+        streakEl.textContent = `${d} ${d === 1 ? 'día' : 'días'}`;
+    }
+
+    /* =========================
+       ANALYTICS INSIGHT
+    ========================= */
+
+    const insightEl = document.getElementById('analyticsInsight');
+    if(insightEl && stats){
+        if(stats.total_sessions === 0){
+            insightEl.textContent = 'Completa tu primera sesión para generar métricas.';
+        } else if(stats.total_sessions < 5){
+            insightEl.textContent = 'Buen comienzo. Sigue acumulando sesiones para ver tendencias.';
+        } else if(stats.current_streak >= 7){
+            insightEl.textContent = `¡${stats.current_streak} días de racha! Tu constancia es impresionante.`;
+        } else if(stats.total_sessions >= 20){
+            insightEl.textContent = 'Ya tienes datos suficientes. Revisa tu progreso semanal en Inicio.';
+        } else {
+            insightEl.textContent = `${stats.total_sessions} sesiones completadas. Sigue así para ver más estadísticas.`;
+        }
+    }
+
+}
+
+/* =========================
+   ACHIEVEMENTS
+========================= */
+
+function loadAchievements(stats){
+
+    const firstEl = document.getElementById('achievementFirstSession');
+    const streakEl = document.getElementById('achievementStreak');
+    const levelEl = document.getElementById('achievementLevel');
+
+    if(firstEl && stats){
+        firstEl.classList.toggle('is-unlocked', stats.total_sessions >= 1);
+    }
+    if(streakEl && stats){
+        streakEl.classList.toggle('is-unlocked', stats.current_streak >= 3);
+    }
+    if(levelEl && stats){
+        levelEl.classList.toggle('is-unlocked', stats.level >= 2);
     }
 
 }
@@ -2319,80 +2832,39 @@ function startPomodoro(){
                 .classList.remove('running');
 
             /* =========================
-               SAVE SESSION
+               SAVE SESSION & REFRESH STATS
             ========================= */
 
-            completedSessions++;
-
-            totalStudyMinutes += currentMode;
-
-            saveSessionToBackend(currentMode, 'pomodoro');
-
-            /* =========================
-               XP SYSTEM
-            ========================= */
-
-            currentXP += 50;
-
-            if(currentXP >= maxXP){
-
-                currentXP = 0;
-
-                currentLevel++;
-
-                showToast(
-                    `¡Subiste al nivel ${currentLevel}! 🎉`,
-                    'success'
-                );
-
+            let sessionMode;
+            if(selectedTask){
+                sessionMode = 'pomodoro';
+            } else if(currentMode === 5){
+                sessionMode = 'break';
+            } else if(currentMode === 25){
+                sessionMode = 'pomodoro';
+            } else {
+                sessionMode = 'long-break';
             }
 
-            /* =========================
-               SAVE LOCAL STORAGE
-            ========================= */
+            const taskId = selectedTask ? selectedTask.id : null;
 
-            localStorage.setItem(
-                'completedSessions',
-                completedSessions
-            );
-
-            localStorage.setItem(
-                'studyMinutes',
-                totalStudyMinutes
-            );
-
-            localStorage.setItem(
-                'currentXP',
-                currentXP
-            );
-
-            localStorage.setItem(
-                'currentLevel',
-                currentLevel
-            );
+            saveSessionToBackend(currentMode, sessionMode, taskId).then(ok => {
+                if(ok) loadStatsFromBackend();
+            });
 
             /* =========================
-               UPDATE UI
+               UI FEEDBACK
             ========================= */
 
-            loadStats();
-
-            /* PET MESSAGE */
-
-            const petTitle =
-                document.getElementById('petTitle');
-
-            if(petTitle){
-
-                petTitle.textContent =
-                    '¡Excelente trabajo! Sigue así 🚀';
-
-            }
             setBuddyMood('excited');
 
             /* SOUND */
 
-            completeSound.play().catch(() => {});
+            const userId = getCurrentUserId();
+            const soundEnabled = userId ? localStorage.getItem(`soundEnabled_${userId}`) : null;
+            if(soundEnabled !== 'false'){
+                playCompleteSound();
+            }
 
             /* BUTTON */
 
@@ -2414,6 +2886,34 @@ function startPomodoro(){
                 'Sesión completada 🎉 ¡Excelente trabajo!',
                 'success'
             );
+
+            /* PREGUNTAR SI COMPLETÓ LA TAREA */
+
+            if(selectedTask){
+                showConfirmToast(
+                    `¿Completaste "${selectedTask.title}"?`,
+                    async () => {
+                        await updateTask(selectedTask.id, { completed: true });
+                        selectedTask = null;
+                        if(focusSubtitle){
+                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                            focusSubtitle.classList.remove('task-active');
+                        }
+                        resetPomodoro();
+                        fetchTasks();
+                    },
+                    () => {
+                        selectedTask = null;
+                        if(focusSubtitle){
+                            focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+                            focusSubtitle.classList.remove('task-active');
+                        }
+                        resetPomodoro();
+                    }
+                );
+            } else {
+                resetPomodoro();
+            }
 
         }
 
@@ -2473,24 +2973,32 @@ function resetPomodoro(){
    SAVE SESSION TO BACKEND
 ========================= */
 
-async function saveSessionToBackend(minutes, mode){
+async function saveSessionToBackend(minutes, mode, taskId){
 
     try{
 
-        await fetch(`${API_URL}/sessions`, {
+        const body = {
+            duration_minutes: minutes,
+            mode: mode || 'pomodoro',
+        };
+
+        if(taskId) body.task_id = taskId;
+
+        const res = await fetch(`${API_URL}/sessions`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({
-                duration_minutes: minutes,
-                mode: mode || 'pomodoro',
-            }),
+            body: JSON.stringify(body),
         });
+
+        if(handleUnauthorized(res)) return false;
+        return res.ok;
 
     }
 
     catch(error){
 
         console.warn('No se pudo guardar la sesión en el backend:', error);
+        return false;
 
     }
 
@@ -2502,6 +3010,8 @@ async function saveSessionToBackend(minutes, mode){
 
 async function loadStatsFromBackend(){
 
+    let stats = null;
+
     try{
 
         const response =
@@ -2509,18 +3019,16 @@ async function loadStatsFromBackend(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(response)) return;
         if(!response.ok) return;
 
-        const stats = await response.json();
+        stats = await response.json();
 
+        if(stats.level > currentLevel){
+            showToast(`¡Subiste al nivel ${stats.level}! 🎉`, 'success');
+        }
         completedSessions = stats.total_sessions;
         totalStudyMinutes = stats.total_minutes;
-
-        localStorage.setItem('completedSessions', completedSessions);
-        localStorage.setItem('studyMinutes', totalStudyMinutes);
-        localStorage.setItem('currentXP', stats.xp);
-        localStorage.setItem('currentLevel', stats.level);
-
         currentXP = stats.xp;
         currentLevel = stats.level;
 
@@ -2588,12 +3096,33 @@ async function loadStatsFromBackend(){
 
         }
 
+        /* ONBOARDING — usuario nuevo sin sesiones */
+
+        const onboardingKey = `onboarding_${getCurrentUserId()}`;
+
+        if(!localStorage.getItem(onboardingKey)){
+            if(total > 0){
+                localStorage.setItem(onboardingKey, 'true');
+            } else {
+                showOnboardingModal();
+            }
+        }
+
     }
 
     catch(error){
 
         console.warn('No se pudieron cargar stats del backend:', error);
+        showToast(
+            'No se pudieron cargar estadísticas. Verifica conexión al servidor.',
+            'warning'
+        );
 
+    }
+
+    if(stats){
+        loadAnalytics(stats, tasks);
+        loadAchievements(stats);
     }
 
     /* FETCH SESSIONS FOR CHART */
@@ -2605,12 +3134,14 @@ async function loadStatsFromBackend(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(sRes)) return;
         if(sRes.ok){
 
             const sessions =
                 await sRes.json();
 
             updateProductivityChart(sessions);
+            renderMiniStreak(sessions);
 
         }
 
@@ -2619,6 +3150,7 @@ async function loadStatsFromBackend(){
     catch(e){
 
         console.warn('No se pudieron cargar sesiones para chart:', e);
+        renderMiniStreak([]);
 
     }
 
@@ -2632,24 +3164,30 @@ function updateProductivityChart(sessions){
 
     if(!studyChart) return;
 
-    let focusMinutes = 0;
+    let deepMinutes = 0;
+    let lightMinutes = 0;
     let breakMinutes = 0;
 
     sessions.forEach(s => {
+        const mins = s.duration_minutes || 0;
         if(s.mode === 'pomodoro'){
-            focusMinutes += s.duration_minutes;
+            if(mins > 15){
+                deepMinutes += mins;
+            } else {
+                lightMinutes += mins;
+            }
         } else {
-            breakMinutes += s.duration_minutes;
+            breakMinutes += mins;
         }
     });
 
-    const totalMinutes = focusMinutes + breakMinutes || 1;
-    const focusPct = Math.round((focusMinutes / totalMinutes) * 100);
+    const totalMinutes = deepMinutes + lightMinutes + breakMinutes || 1;
+    const focusPct = Math.round(((deepMinutes + lightMinutes) / totalMinutes) * 100);
 
     studyChart.data.datasets[0].data = [
-        focusPct,
+        Math.round((deepMinutes / totalMinutes) * 100),
+        Math.round((lightMinutes / totalMinutes) * 100),
         Math.round((breakMinutes / totalMinutes) * 100),
-        0,
         0,
     ];
 
@@ -2670,9 +3208,9 @@ function updateProductivityChart(sessions){
         document.querySelectorAll('.progress-item');
 
     const categories = [
-        { label: 'Enfoque', minutes: focusMinutes },
+        { label: 'Enfoque profundo', minutes: deepMinutes },
+        { label: 'Estudio ligero', minutes: lightMinutes },
         { label: 'Descansos', minutes: breakMinutes },
-        { label: 'Estudio ligero', minutes: 0 },
         { label: 'Distracciones', minutes: 0 },
     ];
 
@@ -2680,6 +3218,14 @@ function updateProductivityChart(sessions){
 
         const item = progressItems[i];
         if(!item) return;
+
+        const labelSpan = item.querySelector('.progress-info span:first-child');
+        if(labelSpan){
+            const dot = labelSpan.querySelector('.legend-dot');
+            labelSpan.innerHTML = '';
+            if(dot) labelSpan.appendChild(dot);
+            labelSpan.append(' ' + cat.label);
+        }
 
         const timeSpan =
             item.querySelector('.progress-info span:last-child');
@@ -2705,6 +3251,89 @@ function updateProductivityChart(sessions){
         }
 
     });
+
+    /* DYNAMIC INSIGHT */
+
+    const insightEl = document.getElementById('insightText');
+    if(!insightEl) return;
+
+    const sessionCount = sessions.length;
+    const focusMinutes = deepMinutes + lightMinutes;
+
+    if(sessionCount === 0){
+        insightEl.textContent = 'Completa tu primera sesión para generar insights de productividad.';
+    } else if(focusMinutes === 0){
+        insightEl.textContent = 'Aún no has registrado sesiones de enfoque. ¡Activa el Pomodoro!';
+    } else if(sessionCount < 3){
+        insightEl.textContent = `Buen comienzo: ${focusMinutes} min de enfoque en ${sessionCount} sesiones. Sigue así para ver patrones.`;
+    } else {
+        const totalH = Math.floor(totalMinutes / 60);
+        const totalM = totalMinutes % 60;
+        const focusH = Math.floor(focusMinutes / 60);
+        const focusM = focusMinutes % 60;
+        const pct = Math.round((focusMinutes / totalMinutes) * 100);
+        insightEl.textContent =
+            `${sessionCount} sesiones · ${totalH > 0 ? `${totalH}h ` : ''}${totalM}m total · ` +
+            `${focusH > 0 ? `${focusH}h ` : ''}${focusM}m de enfoque (${pct}%)`;
+    }
+
+}
+
+/* =========================
+   MINI-STREAK DYNAMIC
+========================= */
+
+function renderMiniStreak(sessions){
+
+    const container = document.querySelector('.mini-days');
+    if(!container) return;
+
+    const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const today = new Date();
+    const currentDay = today.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+
+    const sessionDates = new Set();
+    (sessions || []).forEach(s => {
+        if(s.created_at){
+            sessionDates.add(s.created_at.slice(0, 10));
+        }
+    });
+
+    container.innerHTML = '';
+
+    for(let i = 0; i < 7; i++){
+
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+
+        const y = day.getFullYear();
+        const m = String(day.getMonth() + 1).padStart(2, '0');
+        const d = String(day.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        const isToday = dateStr === today.toISOString().slice(0, 10);
+        const hasSession = sessionDates.has(dateStr);
+        const isPast = day < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const div = document.createElement('div');
+        div.className = 'mini-day';
+
+        if(isToday) div.classList.add('current');
+        if(hasSession) div.classList.add('active');
+        if(!hasSession && isPast) div.classList.add('inactive');
+        if(!hasSession && !isPast && !isToday) div.classList.add('pending');
+
+        div.innerHTML = `
+            <span>${dayNames[i]}</span>
+            <i class="${hasSession ? 'ri-check-line' : ''}"></i>
+        `;
+
+        container.appendChild(div);
+
+    }
 
 }
 
@@ -2738,21 +3367,28 @@ sidebarToggle.addEventListener('click', () => {
 });
 
 /* =========================
-   LOGOUT BUTTON
+   LOGOUT
 ========================= */
+
+function handleLogout(){
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+}
 
 const logoutBtn = document.querySelector('.logout-btn');
 
 if(logoutBtn){
+    logoutBtn.addEventListener('click', handleLogout);
+}
 
-    logoutBtn.addEventListener('click', () => {
+const menuLogout = document.querySelector('.menu-logout');
 
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
-
+if(menuLogout){
+    menuLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
     });
-
 }
 
 /* =========================
@@ -2839,11 +3475,15 @@ function applySessionMode(minutes){
 
     }
 
+    if(focusSubtitle){
+        focusSubtitle.textContent = 'Enfócate en ti, el resultado llegará.';
+        focusSubtitle.classList.remove('task-active');
+    }
+
     startButton.innerHTML = `
         <i class="ri-play-fill"></i>
         Iniciar sesión
     `;
-
 }
 
 function selectFlowCard(card){
@@ -2860,6 +3500,7 @@ function selectFlowCard(card){
 
     if(!Number.isNaN(minutes)){
 
+        selectedTask = null;
         applySessionMode(minutes);
 
     }
@@ -3037,11 +3678,28 @@ function createTaskElement(task){
                 ${task.priority}
             </span>
             <small>${task.duration_minutes} min</small>
+            <button class="task-start-btn" title="Iniciar timer con esta tarea">
+                <i class="ri-play-circle-line"></i>
+            </button>
             <button class="task-menu" title="Eliminar tarea">
                 <i class="ri-delete-bin-line"></i>
             </button>
         </div>
     `;
+
+    const startBtn =
+        taskElement.querySelector('.task-start-btn');
+
+    if(startBtn && !task.completed){
+        startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectTaskFromCard(task);
+        });
+    }
+
+    if(startBtn && task.completed){
+        startBtn.style.display = 'none';
+    }
 
     const checkbox =
         taskElement.querySelector('input');
@@ -3090,12 +3748,7 @@ async function fetchTasks(){
                 headers: getAuthHeaders(),
             });
 
-        if(response.status === 401){
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
-            return;
-        }
+        if(handleUnauthorized(response)) return;
 
         if(!response.ok) throw new Error('No se pudieron cargar las tareas');
 
@@ -3123,30 +3776,45 @@ async function fetchTasks(){
     renderTodayTasks();
     renderAllTasks();
     renderCalendar(calendarMonth, calendarYear);
+    loadAnalytics(null, tasks);
 
 }
 
 async function createTask(payload){
 
-    const response =
-        await fetch(`${API_URL}/tasks`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload),
-        });
+    try{
 
-    if(!response.ok){
+        const response =
+            await fetch(`${API_URL}/tasks`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload),
+            });
 
-        showToast(
-            'No se pudo crear la tarea',
-            'error'
-        );
+        if(!response.ok){
 
-        throw new Error('No se pudo crear la tarea');
+            showToast(
+                'No se pudo crear la tarea',
+                'error'
+            );
+
+            throw new Error('No se pudo crear la tarea');
+
+        }
+
+        await fetchTasks();
 
     }
 
-    await fetchTasks();
+    catch(error){
+        if(error.message !== 'No se pudo crear la tarea'){
+            showToast(
+                'Error de conexión. ¿El backend está activo?',
+                'error'
+            );
+        }
+        throw error;
+    }
 
 }
 
@@ -3157,24 +3825,37 @@ async function updateTask(taskId, payload){
 
     if(!currentTask) return;
 
-    const response =
-        await fetch(`${API_URL}/tasks/${taskId}`, {
-            method: 'PUT',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-                ...currentTask,
-                ...payload,
-            }),
-        });
+    try{
 
-    if(response.ok){
+        const response =
+            await fetch(`${API_URL}/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    ...currentTask,
+                    ...payload,
+                }),
+            });
 
-        await fetchTasks();
+        if(response.ok){
 
-    } else {
+            await fetchTasks();
+
+        } else {
+
+            showToast(
+                'Error al actualizar la tarea',
+                'error'
+            );
+
+        }
+
+    }
+
+    catch(error){
 
         showToast(
-            'Error al actualizar la tarea',
+            'Error de conexión al actualizar la tarea',
             'error'
         );
 
@@ -3308,6 +3989,41 @@ function renderAllTasks(){
 
 }
 
+function selectTaskFromCard(task){
+    selectedTask = task;
+    flowCards.forEach(c => c.classList.remove('active'));
+
+    const mins = task.duration_minutes || 25;
+    currentMode = mins;
+    totalTime = mins * 60;
+    timeLeft = totalTime;
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.querySelector('.circle')?.classList.remove('running');
+    updateTimer();
+
+    sessionStatus.innerHTML = `<span></span>Modo enfoque`;
+    focusModeLabel.textContent = 'Enfocado';
+    progressCircle.style.stroke = 'url(#gradientStroke)';
+
+    if(focusSubtitle){
+        focusSubtitle.textContent = task.title;
+        focusSubtitle.classList.add('task-active');
+    }
+
+    startButton.innerHTML = `
+        <i class="ri-play-fill"></i>
+        Iniciar sesión
+    `;
+
+    const timerSection = document.querySelector('.focus-circle')?.closest('.dashboard-section') || document.querySelector('.focus-circle');
+    if(timerSection){
+        timerSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    setActiveSection('home');
+}
+
 function getTasksByDate(dateString){
 
     return tasks.filter(task => task.due_date === dateString);
@@ -3355,6 +4071,7 @@ async function renderSessions(){
                 headers: getAuthHeaders(),
             });
 
+        if(handleUnauthorized(response)) return;
         if(!response.ok) throw new Error();
 
         const sessions = await response.json();
@@ -3584,11 +4301,6 @@ if(taskForm){
 
             submitBtn.innerHTML = originalText;
 
-            showToast(
-                'No se pudo crear la tarea. ¿El backend está activo?',
-                'error'
-            );
-
         }
 
     });
@@ -3713,6 +4425,60 @@ if(chartCanvas && window.Chart){
 }
 
 /* =========================
+   SETTINGS SYNC (Backend)
+========================= */
+
+async function syncSettingsToBackend(){
+    const userId = getCurrentUserId();
+    if(!userId) return;
+
+    const data = {
+        displayName: localStorage.getItem(`displayName_${userId}`) || '',
+        petName: localStorage.getItem(`petName_${userId}`) || '',
+        pomodoroDuration: parseInt(localStorage.getItem(`pomodoroDuration_${userId}`), 10) || 25,
+        soundEnabled: localStorage.getItem(`soundEnabled_${userId}`) === 'true',
+        onboardingCompleted: localStorage.getItem(`onboarding_${userId}`) === 'true',
+    };
+
+    try{
+        await fetch(`${API_URL}/settings`, {
+            method: 'PUT',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data }),
+        });
+    } catch(e){
+        console.warn('No se pudieron sincronizar ajustes:', e);
+    }
+}
+
+async function loadSettingsFromBackend(){
+    const userId = getCurrentUserId();
+    if(!userId) return;
+
+    try{
+        const res = await fetch(`${API_URL}/settings`, {
+            headers: getAuthHeaders(),
+        });
+        if(!res.ok) return;
+        const { data } = await res.json();
+
+        if(!data || Object.keys(data).length === 0) return;
+
+        if(data.displayName) localStorage.setItem(`displayName_${userId}`, data.displayName);
+        if(data.petName) localStorage.setItem(`petName_${userId}`, data.petName);
+        if(data.pomodoroDuration) localStorage.setItem(`pomodoroDuration_${userId}`, String(data.pomodoroDuration));
+        if(data.soundEnabled !== undefined) localStorage.setItem(`soundEnabled_${userId}`, String(data.soundEnabled));
+        if(data.onboardingCompleted) localStorage.setItem(`onboarding_${userId}`, 'true');
+
+        loadUserInSidebar();
+        loadPetName();
+        loadSettings();
+    } catch(e){
+        console.warn('No se pudieron cargar ajustes del backend:', e);
+    }
+}
+
+/* =========================
    LOAD USER INTO SIDEBAR
 ========================= */
 
@@ -3726,8 +4492,9 @@ function loadUserInSidebar(){
 
         const userData = JSON.parse(stored);
 
+        const displayName = localStorage.getItem(`displayName_${userData.id}`);
         const name =
-            userData.email.split('@')[0] || userData.email;
+            displayName || userData.email.split('@')[0] || userData.email;
 
         const nameElement =
             document.querySelector('.user-info h3');
@@ -3763,6 +4530,100 @@ function loadUserInSidebar(){
         console.warn('No se pudo cargar usuario en sidebar');
 
     }
+
+}
+
+/* =========================
+   INLINE NAME EDIT
+========================= */
+
+function setupNameEdit(){
+
+    const row = document.querySelector('.user-name-row');
+    if(!row) return;
+
+    /* Usamos delegación para no tener que re-attach tras editar */
+
+    row.addEventListener('click', (e) => {
+
+        const btn = e.target.closest('.edit-name-btn');
+        if(!btn) return;
+
+        const h3      = row.querySelector('h3');
+        const edBtn   = row.querySelector('.edit-name-btn');
+        if(!h3 || !edBtn) return;
+
+        const currentName = h3.textContent;
+
+        /* INPUT de edición */
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-name-input';
+        input.value = currentName;
+
+        /* Botón confirmar ✓ */
+
+        const okBtn = document.createElement('button');
+        okBtn.className = 'edit-name-confirm';
+        okBtn.title = 'Guardar';
+        okBtn.innerHTML = '<i class="ri-check-line"></i>';
+
+        h3.replaceWith(input);
+        edBtn.replaceWith(okBtn);
+
+        input.focus();
+        input.select();
+
+        let done = false;
+
+        function commit(){
+
+            if(done) return;
+            done = true;
+
+            const userId = getCurrentUserId();
+            if(!userId) return rollback();
+
+            const val = input.value.trim();
+
+            if(val){
+                localStorage.setItem(`displayName_${userId}`, val);
+            } else {
+                localStorage.removeItem(`displayName_${userId}`);
+            }
+
+            syncSettingsToBackend();
+            rollback();
+            loadUserInSidebar();
+
+        }
+
+        function rollback(){
+
+            const newH3 = document.createElement('h3');
+            newH3.textContent = currentName;
+
+            const newBtn = document.createElement('button');
+            newBtn.className = 'edit-name-btn';
+            newBtn.title = 'Editar nombre';
+            newBtn.innerHTML = '<i class="ri-pencil-line"></i>';
+
+            if(input.parentNode) input.replaceWith(newH3);
+            if(okBtn.parentNode) okBtn.replaceWith(newBtn);
+
+        }
+
+        okBtn.addEventListener('click', commit);
+
+        input.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') { e.preventDefault(); commit(); }
+            if(e.key === 'Escape') { e.preventDefault(); rollback(); }
+        });
+
+        input.addEventListener('blur', commit);
+
+    });
 
 }
 
@@ -3840,6 +4701,92 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* =========================
+   SETTINGS
+========================= */
+
+function loadSettings(){
+
+    const userId = getCurrentUserId();
+
+    if(!userId) return;
+
+    const displayName = localStorage.getItem(`displayName_${userId}`);
+    const pomodoroDuration = localStorage.getItem(`pomodoroDuration_${userId}`);
+    const soundEnabled = localStorage.getItem(`soundEnabled_${userId}`);
+
+    const nameInput = document.getElementById('displayNameInput');
+    const pomoInput = document.getElementById('defaultPomodoroInput');
+    const soundInput = document.getElementById('soundEnabledInput');
+
+    if(nameInput && displayName){
+        nameInput.value = displayName;
+        const nameEl = document.querySelector('.user-info h3');
+        if(nameEl) nameEl.textContent = displayName;
+        const greetingEl = document.getElementById('greetingName');
+        if(greetingEl) greetingEl.textContent = displayName;
+    }
+
+    if(pomoInput && pomodoroDuration){
+        pomoInput.value = pomodoroDuration;
+        const mins = parseInt(pomodoroDuration, 10);
+        if(mins && !timerRunning){
+            currentMode = mins;
+            totalTime = mins * 60;
+            timeLeft = totalTime;
+            const display = document.getElementById('timerDisplay');
+            if(display){
+                const m = String(mins).padStart(2, '0');
+                display.textContent = `${m}:00`;
+            }
+        }
+    }
+
+    if(soundInput && soundEnabled !== null){
+        soundInput.checked = soundEnabled === 'true';
+    }
+
+}
+
+const settingsForm = document.getElementById('settingsForm');
+
+if(settingsForm){
+
+    settingsForm.addEventListener('submit', (e) => {
+
+        e.preventDefault();
+
+        const userId = getCurrentUserId();
+
+        if(!userId) return;
+
+        const nameInput = document.getElementById('displayNameInput');
+        const pomoInput = document.getElementById('defaultPomodoroInput');
+        const soundInput = document.getElementById('soundEnabledInput');
+
+        if(nameInput){
+            localStorage.setItem(`displayName_${userId}`, nameInput.value);
+            const nameEl = document.querySelector('.user-info h3');
+            if(nameEl) nameEl.textContent = nameInput.value;
+            const greetingEl = document.getElementById('greetingName');
+            if(greetingEl) greetingEl.textContent = nameInput.value;
+        }
+
+        if(pomoInput){
+            localStorage.setItem(`pomodoroDuration_${userId}`, pomoInput.value);
+        }
+
+        if(soundInput){
+            localStorage.setItem(`soundEnabled_${userId}`, soundInput.checked);
+        }
+
+        syncSettingsToBackend();
+        showToast('Ajustes guardados', 'success');
+
+    });
+
+}
+
+/* =========================
    INITIALIZE
 ========================= */
 
@@ -3849,9 +4796,19 @@ loadStats();
 
 setBuddyMood('greeting');
 
+renderMiniStreak([]);
+
 loadStatsFromBackend();
 
 loadUserInSidebar();
+
+loadPetName();
+
+setupNameEdit();
+
+loadSettingsFromBackend().then(() => syncSettingsToBackend());
+
+loadSettings();
 
 fetchTasks();
 </file>
@@ -3901,6 +4858,7 @@ body{
     flex-shrink:0;
     min-height:0;
     overflow-y:auto;
+    overflow-x:hidden;
 }
 
 .sidebar::-webkit-scrollbar{
@@ -3940,6 +4898,10 @@ body{
 
 .sidebar.collapsed .logout-btn{
     display:none;
+}
+
+.sidebar.collapsed a.menu-logout{
+    color:#cfcfff;
 }
 
 .sidebar.collapsed .user-panel img{
@@ -4007,6 +4969,12 @@ body{
     gap:12px;
 }
 
+.menu-divider{
+    height:1px;
+    background:rgba(255,255,255,0.06);
+    margin:8px 0;
+}
+
 .menu a{
     display:flex;
     align-items:center;
@@ -4028,6 +4996,16 @@ body{
     background:linear-gradient(135deg,#7c5cff,#9d7bff);
     color:white;
     box-shadow:0 0 25px rgba(124,92,255,0.45);
+}
+
+.menu a.menu-logout{
+    color:#f87171;
+}
+
+.menu a.menu-logout:hover{
+    background:rgba(248,113,113,0.12);
+    transform:translateX(5px);
+    box-shadow:0 0 20px rgba(248,113,113,0.15);
 }
 
 /* USER PANEL */
@@ -4056,16 +5034,100 @@ body{
 
 .user-info{
     flex:1;
+    min-width:0;
+    overflow:hidden;
 }
 
 .user-info h3{
     font-size:16px;
     margin-bottom:4px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
 }
 
 .user-info p{
     color:#a6abd3;
     font-size:14px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.user-name-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    min-width:0;
+}
+
+.user-name-row h3{
+    flex-shrink:1;
+    min-width:0;
+}
+
+.edit-name-btn{
+    flex-shrink:0;
+    width:26px;
+    height:26px;
+    border:none;
+    border-radius:8px;
+    background:transparent;
+    color:#8b92c9;
+    font-size:13px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:0.25s;
+    opacity:0.4;
+}
+
+.user-name-row:hover .edit-name-btn{
+    opacity:1;
+}
+
+.edit-name-btn:hover{
+    background:rgba(124,92,255,0.2);
+    color:#7c5cff;
+}
+
+.edit-name-input{
+    flex:1;
+    min-width:0;
+    border:1px solid rgba(124,92,255,0.5);
+    border-radius:8px;
+    background:rgba(10,15,35,0.8);
+    color:white;
+    font:inherit;
+    font-size:14px;
+    padding:4px 8px;
+    outline:none;
+}
+
+.edit-name-input:focus{
+    border-color:#7c5cff;
+    box-shadow:0 0 0 3px rgba(124,92,255,0.15);
+}
+
+.edit-name-confirm{
+    flex-shrink:0;
+    width:26px;
+    height:26px;
+    border:none;
+    border-radius:8px;
+    background:#7c5cff;
+    color:white;
+    font-size:13px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:0.25s;
+}
+
+.edit-name-confirm:hover{
+    background:#6a4ae0;
 }
 
 .logout-btn{
@@ -4094,6 +5156,7 @@ body{
     opacity:0.18;
     right:-30px;
     bottom:-30px;
+    pointer-events:none;
 }
 
 /* =========================
@@ -4161,7 +5224,9 @@ body{
 .placeholder-section-card p,
 .task-create-card p,
 .task-page-card p,
-.calendar-header p{
+.calendar-header p,
+.insight-section-card p,
+.settings-card p{
     color:#a7add7;
     margin-top:8px;
     line-height:1.7;
@@ -4322,8 +5387,43 @@ body{
 }
 
 .focus-subtitle{
-    color:#a7add7;
+    color:#9ca3cf;
     margin-top:8px;
+    font-size:14px;
+    transition:all .3s ease;
+    position:relative;
+}
+
+.focus-subtitle.task-active{
+    color:#b388ff;
+    font-weight:500;
+    font-size:15px;
+    padding-left:16px;
+    animation:subtitlePop .4s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+
+.focus-subtitle.task-active::before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:50%;
+    transform:translateY(-50%);
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#7c5cff;
+    box-shadow:0 0 8px rgba(124,92,255,.6);
+    animation:dotGlow 2s ease-in-out infinite;
+}
+
+@keyframes subtitlePop{
+    0%{ opacity:0; transform:translateY(-6px); }
+    100%{ opacity:1; transform:translateY(0); }
+}
+
+@keyframes dotGlow{
+    0%,100%{ box-shadow:0 0 8px rgba(124,92,255,.6); }
+    50%{ box-shadow:0 0 14px rgba(124,92,255,.9); }
 }
 
 .focus-actions{
@@ -4723,6 +5823,15 @@ button:hover{
     box-shadow:0 0 14px rgba(255,138,76,0.18);
 }
 
+.mini-day.inactive{
+    color:#6b7199;
+}
+
+.mini-day.inactive i{
+    border-color:rgba(255,255,255,0.06);
+    color:#6b7199;
+}
+
 /* =========================
    TASKS
 ========================= */
@@ -4851,6 +5960,30 @@ button:hover{
 .task-menu:hover{
     color:#ff6b6b;
     background:rgba(255,107,107,0.12);
+}
+
+.task-start-btn{
+    width:28px;
+    height:28px;
+    border:none;
+    border-radius:8px;
+    background:transparent;
+    color:#7c5cff;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:0.25s ease;
+}
+
+.task-start-btn:hover{
+    color:#a78bfa;
+    background:rgba(124,92,255,0.12);
+}
+
+.task-start-btn:focus-visible{
+    outline:2px solid #7c5cff;
+    outline-offset:2px;
 }
 
 .task.completed .task-left > span{
@@ -5587,6 +6720,137 @@ button:hover{
 }
 
 /* =========================
+   INSIGHT / SETTINGS SECTIONS
+========================= */
+
+.insight-section-card,
+.settings-card{
+    min-height:320px;
+}
+
+.insight-grid,
+.achievement-grid{
+    margin-top:26px;
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0,1fr));
+    gap:14px;
+}
+
+.achievement-grid{
+    grid-template-columns:repeat(3, minmax(0,1fr));
+}
+
+.insight-stat,
+.achievement-item{
+    min-width:0;
+    border:1px solid rgba(255,255,255,0.06);
+    background:rgba(255,255,255,0.04);
+    border-radius:18px;
+    padding:18px;
+}
+
+.insight-stat span,
+.achievement-item span{
+    display:block;
+    color:#aeb3d8;
+    font-size:13px;
+    line-height:1.5;
+}
+
+.insight-stat strong{
+    display:block;
+    margin-top:8px;
+    font-size:28px;
+    line-height:1.1;
+}
+
+.achievement-item{
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+}
+
+.achievement-item i{
+    width:44px;
+    height:44px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:15px;
+    background:rgba(124,92,255,0.16);
+    color:#b47cff;
+    font-size:24px;
+}
+
+.achievement-item.is-unlocked{
+    border-color:rgba(92,255,155,0.22);
+    background:rgba(92,255,155,0.06);
+}
+
+.achievement-item.is-unlocked i{
+    background:rgba(92,255,155,0.14);
+    color:#5cff9b;
+}
+
+.insight-note{
+    margin-top:18px;
+    padding:18px;
+    border-radius:18px;
+    background:rgba(124,92,255,0.08);
+    border:1px solid rgba(124,92,255,0.16);
+    color:#d8daf0;
+    line-height:1.7;
+}
+
+.settings-form{
+    margin-top:26px;
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:16px;
+}
+
+.settings-form label{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    color:#d8daf0;
+    font-size:14px;
+    font-weight:500;
+}
+
+.settings-form input{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    background:rgba(10,15,35,0.72);
+    color:white;
+    padding:13px 14px;
+    font:inherit;
+    outline:none;
+}
+
+.settings-form input:focus{
+    border-color:rgba(124,92,255,0.55);
+    box-shadow:0 0 0 4px rgba(124,92,255,0.12);
+}
+
+.settings-toggle{
+    flex-direction:row !important;
+    align-items:center;
+    grid-column:1 / -1;
+}
+
+.settings-toggle input{
+    width:18px;
+    height:18px;
+    accent-color:#7c5cff;
+}
+
+.settings-form .primary-btn{
+    width:fit-content;
+}
+
+/* =========================
    BACKGROUND BLOBS
 ========================= */
 
@@ -5847,6 +7111,14 @@ button:hover{
         height:64px;
     }
 
+    .insight-grid{
+        grid-template-columns:repeat(2, minmax(0,1fr));
+    }
+
+    .achievement-grid{
+        grid-template-columns:repeat(2, minmax(0,1fr));
+    }
+
     .mini-stats{
         grid-template-columns:1fr;
     }
@@ -5875,6 +7147,18 @@ button:hover{
     .calendar-header{
         align-items:flex-start;
         flex-direction:column;
+    }
+
+    .insight-grid{
+        grid-template-columns:1fr;
+    }
+
+    .achievement-grid{
+        grid-template-columns:1fr;
+    }
+
+    .settings-form{
+        grid-template-columns:1fr;
     }
 
     .form-row{
@@ -5945,7 +7229,7 @@ img{
     position:fixed;
     bottom:30px;
     right:30px;
-    z-index:9999;
+    z-index:100000;
     display:flex;
     flex-direction:column;
     gap:10px;
@@ -6174,6 +7458,191 @@ img{
 .toast.has-undo{
     padding-right:14px;
 }
+
+.toast.has-confirm{
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+    padding:14px 18px;
+    animation:toastIn .35s ease;
+}
+
+.toast-actions{
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+}
+
+.toast-confirm-yes{
+    background:#7c5cff;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:6px 14px;
+    cursor:pointer;
+    font-size:13px;
+    transition:0.2s;
+}
+
+.toast-confirm-yes:hover{
+    background:#6a4be0;
+}
+
+.toast-confirm-no{
+    background:rgba(255,255,255,.08);
+    color:#d7daf7;
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:8px;
+    padding:6px 14px;
+    cursor:pointer;
+    font-size:13px;
+    transition:0.2s;
+}
+
+.toast-confirm-no:hover{
+    background:rgba(255,255,255,.12);
+}
+
+/* =========================
+   ONBOARDING MODAL
+========================= */
+
+.onboarding-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(2,6,23,0.92);
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    z-index:99999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    animation:fadeIn 0.5s ease;
+}
+
+.onboarding-overlay.is-visible{
+    display:flex;
+}
+
+.onboarding-modal{
+    position:relative;
+    background:rgba(16,19,46,0.98);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:28px;
+    padding:50px 40px 40px;
+    max-width:420px;
+    width:100%;
+    text-align:center;
+    box-shadow:0 0 80px rgba(0,0,0,0.6);
+    overflow:hidden;
+    animation:scaleIn 0.4s ease;
+}
+
+@keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+}
+
+@keyframes scaleIn{
+    from{
+        opacity:0;
+        transform:scale(0.92);
+    }
+    to{
+        opacity:1;
+        transform:scale(1);
+    }
+}
+
+.onboarding-glow{
+    position:absolute;
+    width:300px;
+    height:300px;
+    background:#7c5cff;
+    filter:blur(120px);
+    opacity:0.12;
+    top:-60px;
+    right:-60px;
+    pointer-events:none;
+}
+
+.onboarding-logo{
+    width:72px;
+    height:72px;
+    margin-bottom:16px;
+    object-fit:contain;
+    filter:drop-shadow(0 0 20px rgba(124,92,255,0.5));
+}
+
+.onboarding-modal h2{
+    font-size:26px;
+    font-weight:700;
+    margin-bottom:10px;
+}
+
+.onboarding-subtitle{
+    color:#9ea4cf;
+    font-size:14px;
+    margin-bottom:28px;
+    line-height:1.6;
+}
+
+.onboarding-field{
+    margin-bottom:22px;
+    text-align:left;
+}
+
+.onboarding-field label{
+    display:block;
+    color:#d8daf0;
+    font-size:14px;
+    font-weight:500;
+    margin-bottom:8px;
+}
+
+.onboarding-field input{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    background:rgba(10,15,35,0.72);
+    color:white;
+    padding:14px 16px;
+    font:inherit;
+    outline:none;
+    font-size:15px;
+    transition:0.3s;
+    box-sizing:border-box;
+}
+
+.onboarding-field input:focus{
+    border-color:rgba(124,92,255,0.55);
+    box-shadow:0 0 0 4px rgba(124,92,255,0.12);
+}
+
+.onboarding-field input::placeholder{
+    color:#6b7280;
+}
+
+.onboarding-modal .primary-btn{
+    width:100%;
+    margin-top:8px;
+    padding:16px;
+    font-size:16px;
+}
+
+/* =========================
+   FOCUS / KEYBOARD
+========================= */
+
+.secondary-btn:focus-visible,
+.small-btn:focus-visible,
+.period-btn:focus-visible,
+.edit-name-btn:focus-visible,
+.primary-btn:focus-visible{
+    outline:2px solid #7c5cff;
+    outline-offset:2px;
+}
 </file>
 
 <file path="frontend/dashboard.html">
@@ -6261,7 +7730,7 @@ img{
                     <a href="#" data-section="sessions" data-tip="Sesiones">
 
                         <i class="ri-timer-flash-line"></i>
-                        <span>Sesiones</span>
+                        <span>Historial</span>
 
                     </a>
 
@@ -6293,6 +7762,15 @@ img{
 
                     </a>
 
+                    <div class="menu-divider"></div>
+
+                    <a href="#" class="menu-logout" data-tip="Cerrar sesión">
+
+                        <i class="ri-logout-box-r-line"></i>
+                        <span>Cerrar sesión</span>
+
+                    </a>
+
                 </nav>
 
             </div>
@@ -6306,8 +7784,14 @@ img{
 
                 <div class="user-info">
 
-                    <h3>Carlos David</h3>
-                    <p>Estudiante</p>
+                    <div class="user-name-row">
+                        <h3>Cargando...</h3>
+                        <button class="edit-name-btn" title="Editar nombre">
+                            <i class="ri-pencil-line"></i>
+                        </button>
+                    </div>
+
+                    <p>Cargando...</p>
 
                 </div>
 
@@ -6329,7 +7813,7 @@ img{
 
                 <div class="welcome">
 
-                    <h1>Hola, <span id="greetingName">Carlos</span> 👋</h1>
+                    <h1>Hola, <span id="greetingName">...</span> 👋</h1>
                     <p>Construyamos una sesión increíble hoy.</p>
 
                 </div>
@@ -6436,7 +7920,7 @@ img{
 
                                 <h2>Sesión de estudio</h2>
 
-                                <p class="focus-subtitle">
+                                <p class="focus-subtitle" id="focusSubtitle">
                                     Enfócate en ti, el resultado llegará.
                                 </p>
 
@@ -6611,7 +8095,7 @@ img{
 
                         <div>
 
-                            <h2>Tu mascota: <span>Buddy</span></h2>
+                            <h2>Tu mascota: <span id="petNameDisplay">Buddy</span></h2>
                             <p id="levelText">Nivel 1</p>
 
                         </div>
@@ -6842,7 +8326,7 @@ img{
                         <div>
 
                             <h4>Insight de la semana</h4>
-                            <p>Estudias mejor por las noches. Tu pico de enfoque es entre 7PM - 11PM.</p>
+                            <p id="insightText">Completa tu primera sesión para generar insights.</p>
 
                         </div>
 
@@ -7029,9 +8513,36 @@ img{
 
             <section class="dashboard-section" id="section-analytics">
 
-                <div class="card placeholder-section-card">
-                    <h2>Análisis</h2>
-                    <p>Tu vista de productividad ya está en Inicio. Aquí prepararemos métricas más profundas sin alterar el diseño actual.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Análisis</h2>
+                            <p>Resumen real de tu enfoque, tareas y progreso semanal.</p>
+                        </div>
+                    </div>
+
+                    <div class="insight-grid" id="analyticsGrid">
+                        <div class="insight-stat">
+                            <span>Sesiones</span>
+                            <strong id="analyticsSessions">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Horas estudiadas</span>
+                            <strong id="analyticsHours">0h</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Tareas pendientes</span>
+                            <strong id="analyticsPendingTasks">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Racha</span>
+                            <strong id="analyticsStreak">0 días</strong>
+                        </div>
+                    </div>
+
+                    <div class="insight-note" id="analyticsInsight">
+                        Completa una sesión para generar tus primeras métricas.
+                    </div>
                 </div>
 
             </section>
@@ -7053,18 +8564,66 @@ img{
 
             <section class="dashboard-section" id="section-achievements">
 
-                <div class="card placeholder-section-card">
-                    <h2>Logros</h2>
-                    <p>Pronto podrás revisar insignias, rachas y progreso acumulado.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Logros</h2>
+                            <p>Insignias simples basadas en tu constancia y progreso.</p>
+                        </div>
+                    </div>
+
+                    <div class="achievement-grid">
+                        <div class="achievement-item" id="achievementFirstSession">
+                            <i class="ri-rocket-line"></i>
+                            <strong>Primer enfoque</strong>
+                            <span>Completa tu primera sesión.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementStreak">
+                            <i class="ri-fire-line"></i>
+                            <strong>Racha activa</strong>
+                            <span>Mantén al menos 3 días de racha.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementLevel">
+                            <i class="ri-vip-crown-line"></i>
+                            <strong>Nivel 2</strong>
+                            <span>Acumula suficiente XP para subir de nivel.</span>
+                        </div>
+                    </div>
                 </div>
 
             </section>
 
             <section class="dashboard-section" id="section-settings">
 
-                <div class="card placeholder-section-card">
-                    <h2>Ajustes</h2>
-                    <p>Espacio reservado para preferencias del dashboard y cuenta.</p>
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Ajustes</h2>
+                            <p>Preferencias ligeras guardadas en este navegador.</p>
+                        </div>
+                    </div>
+
+                    <form class="settings-form" id="settingsForm">
+                        <label>
+                            Nombre visible
+                            <input type="text" id="displayNameInput" maxlength="40" placeholder="Tu nombre">
+                        </label>
+
+                        <label>
+                            Duración Pomodoro
+                            <input type="number" id="defaultPomodoroInput" min="5" max="120" step="5" value="25">
+                        </label>
+
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="soundEnabledInput" checked>
+                            <span>Sonidos al completar sesión</span>
+                        </label>
+
+                        <button class="primary-btn" type="submit">
+                            <i class="ri-save-line"></i>
+                            Guardar ajustes
+                        </button>
+                    </form>
                 </div>
 
             </section>
@@ -7073,10 +8632,28 @@ img{
 
     </div>
 
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="onboardingOverlay" class="onboarding-overlay">
+        <div class="onboarding-modal">
+            <div class="onboarding-glow"></div>
+            <img src="assets/imagenes/logo.png" class="onboarding-logo" alt="StudyBuddy">
+            <h2>¡Bienvenido a StudyBuddy! 🚀</h2>
+            <p class="onboarding-subtitle">Antes de empezar, cuéntanos un poco sobre ti</p>
+            <div class="onboarding-field">
+                <label for="onboardingName">¿Cómo te llamas?</label>
+                <input type="text" id="onboardingName" placeholder="Tu nombre" required>
+            </div>
+            <div class="onboarding-field">
+                <label for="onboardingPetName">¿Nombre de tu mascota?</label>
+                <input type="text" id="onboardingPetName" placeholder="Ej: Buddy" value="Buddy">
+            </div>
+            <button id="onboardingSubmit" class="primary-btn">¡Comenzar!</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="dashboard.js"></script>
-
-    <div id="toastContainer" class="toast-container"></div>
 
 </body>
 

@@ -64,6 +64,9 @@ class SessionCreate(BaseModel):
     duration_minutes: int = Field(ge=1, le=240)
     mode: Literal["pomodoro", "break", "short-break", "long-break"] = "pomodoro"
     task_id: Optional[int] = None
+    task_title: Optional[str] = None
+    task_completed: bool = False
+    away_minutes: int = 0
 
 class SessionResponse(BaseModel):
     id: int
@@ -71,6 +74,9 @@ class SessionResponse(BaseModel):
     duration_minutes: int
     mode: str
     task_id: Optional[int] = None
+    task_title: Optional[str] = None
+    task_completed: bool = False
+    away_minutes: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}
