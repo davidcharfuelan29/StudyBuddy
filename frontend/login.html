@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StudyBuddy</title>
 <link rel="stylesheet" href="login.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,7 +55,7 @@
         Inicia sesión para continuar con tu productividad.
         </p>
 
-        <form id="form">
+        <form id="form" novalidate>
 
             <div class="input-group">
                 <img src="assets/iconos/icon-mail.svg" class="input-icon">
@@ -87,7 +88,9 @@
         </form>
 
         <p class="switch">
-            ¿No tienes cuenta? <span id="switchMode">Regístrate</span>
+            <span id="switchLoginText">¿No tienes cuenta?</span>
+            <span id="switchRegisterText" style="display:none">¿Ya tienes cuenta?</span>
+            <span id="switchMode">Regístrate</span>
         </p>
 
         <p id="message"></p>

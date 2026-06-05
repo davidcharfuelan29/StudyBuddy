@@ -98,7 +98,6 @@ body {
     flex: 1;
     padding: 50px;
     position: relative;
-    overflow: hidden;
 
     background:
     linear-gradient(
@@ -191,19 +190,14 @@ body {
 
 .features {
     position: absolute;
-
     bottom: -255px;
     left: 50%;
-
     transform: translateX(-50%);
-
     width: 80%;
-
     display: flex;
-    justify-content: center ; 
+    justify-content: center;
     gap: 15px;
     align-items: center;
-
     z-index: 3;
 }
 
@@ -511,7 +505,7 @@ button:hover {
     color: #9ca3af;
 }
 
-.switch span {
+#switchMode {
     color: #a78bfa;
     cursor: pointer;
 }

@@ -64,52 +64,62 @@
                 <!-- MENU -->
                 <nav class="menu">
 
-                    <a href="#" class="active" data-section="home">
+                    <a href="#" class="active" data-section="home" data-tip="Inicio">
 
                         <i class="ri-home-5-fill"></i>
                         <span>Inicio</span>
 
                     </a>
 
-                    <a href="#" data-section="tasks">
+                    <a href="#" data-section="tasks" data-tip="Tareas">
 
                         <i class="ri-task-line"></i>
                         <span>Tareas</span>
+                        <span class="menu-badge" id="taskBadge">0</span>
 
                     </a>
 
-                    <a href="#" data-section="sessions">
+                    <a href="#" data-section="sessions" data-tip="Sesiones">
 
                         <i class="ri-timer-flash-line"></i>
-                        <span>Sesiones</span>
+                        <span>Historial</span>
 
                     </a>
 
-                    <a href="#" data-section="analytics">
+                    <a href="#" data-section="analytics" data-tip="Análisis">
 
                         <i class="ri-bar-chart-box-line"></i>
                         <span>Análisis</span>
 
                     </a>
 
-                    <a href="#" data-section="calendar">
+                    <a href="#" data-section="calendar" data-tip="Calendario">
 
                         <i class="ri-calendar-line"></i>
                         <span>Calendario</span>
 
                     </a>
 
-                    <a href="#" data-section="achievements">
+                    <a href="#" data-section="achievements" data-tip="Logros">
 
                         <i class="ri-medal-line"></i>
                         <span>Logros</span>
 
                     </a>
 
-                    <a href="#" data-section="settings">
+                    <a href="#" data-section="settings" data-tip="Ajustes">
 
                         <i class="ri-settings-3-line"></i>
                         <span>Ajustes</span>
+
+                    </a>
+
+                    <div class="menu-divider"></div>
+
+                    <a href="#" class="menu-logout" data-tip="Cerrar sesión">
+
+                        <i class="ri-logout-box-r-line"></i>
+                        <span>Cerrar sesión</span>
 
                     </a>
 
@@ -126,8 +136,14 @@
 
                 <div class="user-info">
 
-                    <h3>Carlos David</h3>
-                    <p>Estudiante</p>
+                    <div class="user-name-row">
+                        <h3>Cargando...</h3>
+                        <button class="edit-name-btn" title="Editar nombre">
+                            <i class="ri-pencil-line"></i>
+                        </button>
+                    </div>
+
+                    <p>Cargando...</p>
 
                 </div>
 
@@ -149,7 +165,7 @@
 
                 <div class="welcome">
 
-                    <h1>Hola, Carlos 👋</h1>
+                    <h1>Hola, <span id="greetingName">...</span> 👋</h1>
                     <p>Construyamos una sesión increíble hoy.</p>
 
                 </div>
@@ -167,8 +183,8 @@
                             <div>
 
                                 <span>Racha actual</span>
-                                <strong>12 días</strong>
-                                <small>¡Vas genial! 🔥</small>
+                                <strong id="streakCount">0 días</strong>
+                                <small id="streakMessage">Completa tu primera sesión 🔥</small>
 
                             </div>
 
@@ -256,7 +272,7 @@
 
                                 <h2>Sesión de estudio</h2>
 
-                                <p class="focus-subtitle">
+                                <p class="focus-subtitle" id="focusSubtitle">
                                     Enfócate en ti, el resultado llegará.
                                 </p>
 
@@ -431,7 +447,7 @@
 
                         <div>
 
-                            <h2>Tu mascota: <span>Buddy</span></h2>
+                            <h2>Tu mascota: <span id="petNameDisplay">Buddy</span></h2>
                             <p id="levelText">Nivel 1</p>
 
                         </div>
@@ -461,7 +477,7 @@
                                 ¡Estoy orgulloso de ti! 💜
                             </h3>
 
-                            <p>
+                            <p id="petMessageText">
                                 Cada minuto de enfoque
                                 te acerca más a tus metas.
                             </p>
@@ -500,8 +516,8 @@
 
                         <div>
 
-                            <h4>Feliz</h4>
-                            <p>Tu racha me hace muy feliz</p>
+                            <h4 id="moodTitle">Feliz</h4>
+                            <p id="moodText">Tu racha me hace muy feliz</p>
 
                         </div>
 
@@ -516,7 +532,7 @@
 
                         <div class="tasks-title">
 
-                            <h2>Tareas de hoy</h2>
+                            <h2>Tareas pendientes</h2>
                             <span>3 pendientes</span>
 
                         </div>
@@ -662,7 +678,7 @@
                         <div>
 
                             <h4>Insight de la semana</h4>
-                            <p>Estudias mejor por las noches. Tu pico de enfoque es entre 7PM - 11PM.</p>
+                            <p id="insightText">Completa tu primera sesión para generar insights.</p>
 
                         </div>
 
@@ -849,42 +865,143 @@
 
             <section class="dashboard-section" id="section-analytics">
 
-                <div class="card placeholder-section-card">
-                    <h2>Análisis</h2>
-                    <p>Tu vista de productividad ya está en Inicio. Aquí prepararemos métricas más profundas sin alterar el diseño actual.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Análisis</h2>
+                            <p>Resumen real de tu enfoque, tareas y progreso semanal.</p>
+                        </div>
+                    </div>
+
+                    <div class="insight-grid" id="analyticsGrid">
+                        <div class="insight-stat">
+                            <span>Sesiones</span>
+                            <strong id="analyticsSessions">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Horas estudiadas</span>
+                            <strong id="analyticsHours">0h</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Tareas pendientes</span>
+                            <strong id="analyticsPendingTasks">0</strong>
+                        </div>
+                        <div class="insight-stat">
+                            <span>Racha</span>
+                            <strong id="analyticsStreak">0 días</strong>
+                        </div>
+                    </div>
+
+                    <div class="insight-note" id="analyticsInsight">
+                        Completa una sesión para generar tus primeras métricas.
+                    </div>
                 </div>
 
             </section>
 
             <section class="dashboard-section" id="section-sessions">
 
-                <div class="card placeholder-section-card">
+                <div class="card">
                     <h2>Sesiones</h2>
-                    <p>La sesión Pomodoro principal se mantiene en Inicio. Esta sección queda preparada para historial y configuración de sesiones.</p>
+                    <p style="color:#9ea4cf;font-size:14px;margin-top:4px;">Historial de tus sesiones de enfoque y descanso</p>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="sessions-empty">
+                            <i class="ri-timer-flash-line"></i>
+                            <p style="color:#9ea4cf;">No hay sesiones registradas aún. Completa un Pomodoro para ver tu historial aquí.</p>
+                        </div>
+                    </div>
                 </div>
 
             </section>
 
             <section class="dashboard-section" id="section-achievements">
 
-                <div class="card placeholder-section-card">
-                    <h2>Logros</h2>
-                    <p>Pronto podrás revisar insignias, rachas y progreso acumulado.</p>
+                <div class="card insight-section-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Logros</h2>
+                            <p>Insignias simples basadas en tu constancia y progreso.</p>
+                        </div>
+                    </div>
+
+                    <div class="achievement-grid">
+                        <div class="achievement-item" id="achievementFirstSession">
+                            <i class="ri-rocket-line"></i>
+                            <strong>Primer enfoque</strong>
+                            <span>Completa tu primera sesión.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementStreak">
+                            <i class="ri-fire-line"></i>
+                            <strong>Racha activa</strong>
+                            <span>Mantén al menos 3 días de racha.</span>
+                        </div>
+                        <div class="achievement-item" id="achievementLevel">
+                            <i class="ri-vip-crown-line"></i>
+                            <strong>Nivel 2</strong>
+                            <span>Acumula suficiente XP para subir de nivel.</span>
+                        </div>
+                    </div>
                 </div>
 
             </section>
 
             <section class="dashboard-section" id="section-settings">
 
-                <div class="card placeholder-section-card">
-                    <h2>Ajustes</h2>
-                    <p>Espacio reservado para preferencias del dashboard y cuenta.</p>
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Ajustes</h2>
+                            <p>Preferencias ligeras guardadas en este navegador.</p>
+                        </div>
+                    </div>
+
+                    <form class="settings-form" id="settingsForm">
+                        <label>
+                            Nombre visible
+                            <input type="text" id="displayNameInput" maxlength="40" placeholder="Tu nombre">
+                        </label>
+
+                        <label>
+                            Duración Pomodoro
+                            <input type="number" id="defaultPomodoroInput" min="5" max="120" step="5" value="25">
+                        </label>
+
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="soundEnabledInput" checked>
+                            <span>Sonidos al completar sesión</span>
+                        </label>
+
+                        <button class="primary-btn" type="submit">
+                            <i class="ri-save-line"></i>
+                            Guardar ajustes
+                        </button>
+                    </form>
                 </div>
 
             </section>
 
         </main>
 
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="onboardingOverlay" class="onboarding-overlay">
+        <div class="onboarding-modal">
+            <div class="onboarding-glow"></div>
+            <img src="assets/imagenes/logo.png" class="onboarding-logo" alt="StudyBuddy">
+            <h2>¡Bienvenido a StudyBuddy! 🚀</h2>
+            <p class="onboarding-subtitle">Antes de empezar, cuéntanos un poco sobre ti</p>
+            <div class="onboarding-field">
+                <label for="onboardingName">¿Cómo te llamas?</label>
+                <input type="text" id="onboardingName" placeholder="Tu nombre" required>
+            </div>
+            <div class="onboarding-field">
+                <label for="onboardingPetName">¿Nombre de tu mascota?</label>
+                <input type="text" id="onboardingPetName" placeholder="Ej: Buddy" value="Buddy">
+            </div>
+            <button id="onboardingSubmit" class="primary-btn">¡Comenzar!</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

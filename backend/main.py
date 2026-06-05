@@ -1,23 +1,42 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-import os
+from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
-from .database import SessionLocal, engine, Base
-from .models import Task, User
+from datetime import datetime, timezone
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import os
 
+from .database import SessionLocal, engine, Base
+from .models import Task, User, Session as SessionModel, UserSettings
+from .schemas import (
+    TaskCreate, TaskUpdate, TaskResponse,
+    UserCreate, UserLogin, UserResponse,
+    Token, SessionCreate, SessionResponse,
+    StatsResponse, SettingsResponse, SettingsUpdate,
+)
+from .auth import create_access_token, get_current_user
 
 app = FastAPI()
 
-# 📁 Ruta base del proyecto
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# 📁 Servir frontend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CORS_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000"
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+
 app.mount("/frontend", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="frontend")
 
-# 🔐 HASH CONFIG
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str):
@@ -26,196 +45,320 @@ def hash_password(password: str):
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
-# 🧱 CREAR TABLAS
-Base.metadata.create_all(bind=engine)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-def ensure_task_columns():
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[StudyBuddy] Error al crear tablas: {e}")
+
+def ensure_missing_columns():
     inspector = inspect(engine)
-
-    if "tasks" not in inspector.get_table_names():
-        return
-
-    existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("tasks")
-    }
-
-    columns = {
-        "due_date": "VARCHAR",
-        "priority": "VARCHAR DEFAULT 'media'",
-        "duration_minutes": "INTEGER DEFAULT 30",
-        "completed": "BOOLEAN DEFAULT FALSE",
+    tables_info = {
+        "tasks": {
+            "due_date": "VARCHAR",
+            "priority": "VARCHAR DEFAULT 'media'",
+            "duration_minutes": "INTEGER DEFAULT 30",
+            "completed": "BOOLEAN DEFAULT FALSE",
+            "user_id": "INTEGER REFERENCES users(id)",
+        },
+        "sessions": {
+            "user_id": "INTEGER REFERENCES users(id)",
+            "duration_minutes": "INTEGER DEFAULT 25",
+            "mode": "VARCHAR DEFAULT 'pomodoro'",
+            "task_id": "INTEGER REFERENCES tasks(id)",
+            "task_title": "VARCHAR",
+            "task_completed": "BOOLEAN DEFAULT FALSE",
+            "away_minutes": "INTEGER DEFAULT 0",
+            "created_at": "VARCHAR",
+        },
     }
 
     with engine.begin() as connection:
-        for column_name, definition in columns.items():
-            if column_name not in existing_columns:
-                connection.execute(
-                    text(f"ALTER TABLE tasks ADD COLUMN {column_name} {definition}")
-                )
+        for table_name, columns in tables_info.items():
+            if table_name not in inspector.get_table_names():
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for col_name, definition in columns.items():
+                if col_name not in existing:
+                    connection.execute(
+                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
+                    )
 
-ensure_task_columns()
+try:
+    ensure_missing_columns()
+except Exception as e:
+    print(f"[StudyBuddy] Error en ensure_missing_columns: {e}")
 
-# 🌐 CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🏠 HOME
 @app.get("/")
 def home():
     return RedirectResponse(url="/frontend/index.html")
 
 
-# 🔐 REGISTER
 @app.post("/register")
-def register(user: dict):
-    db = SessionLocal()
-
-    existing_user = db.query(User).filter(User.email == user["email"]).first()
+@limiter.limit("5/minute")
+def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
-        db.close()
         raise HTTPException(status_code=400, detail="Usuario ya existe")
 
-    hashed_password = hash_password(user["password"])
-
-    new_user = User(
-        email=user["email"],
-        password=hashed_password
-    )
-
+    new_user = User(email=user.email, password=hash_password(user.password))
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    db.close()
 
     return {"message": "Usuario creado"}
 
 
-# 🔑 LOGIN
-@app.post("/login")
-def login(user: dict):
-    db = SessionLocal()
-
-    db_user = db.query(User).filter(User.email == user["email"]).first()
+@app.post("/login", response_model=Token)
+@limiter.limit("10/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user:
-        db.close()
         raise HTTPException(status_code=400, detail="Usuario no existe")
 
-    if not verify_password(user["password"], db_user.password):
-        db.close()
+    if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
 
-    db.close()
+    token = create_access_token({"user_id": db_user.id})
 
-    return {
-        "message": "Login exitoso",
-        "user": {
-            "id": db_user.id,
-            "email": db_user.email
-        }
-    }
+    return Token(
+        access_token=token,
+        user=UserResponse(id=db_user.id, email=db_user.email),
+    )
 
 
-# 📋 TASKS
-
-def serialize_task(task: Task):
-    return {
-        "id": task.id,
-        "title": task.title,
-        "due_date": task.due_date,
-        "priority": task.priority or "media",
-        "duration_minutes": task.duration_minutes or 30,
-        "completed": bool(task.completed),
-    }
-
-@app.get("/tasks")
-def get_tasks():
-    db = SessionLocal()
-    tasks = db.query(Task).all()
-    db.close()
-    return [serialize_task(t) for t in tasks]
+@app.get("/tasks", response_model=list[TaskResponse])
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
+    return tasks
 
 
-@app.post("/tasks")
-def create_task(task: dict):
-    db = SessionLocal()
+@app.post("/tasks", response_model=TaskResponse)
+def create_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     new_task = Task(
-        title=task["title"],
-        due_date=task.get("due_date"),
-        priority=task.get("priority", "media"),
-        duration_minutes=task.get("duration_minutes", 30),
-        completed=task.get("completed", False),
+        title=task.title,
+        due_date=task.due_date,
+        priority=task.priority,
+        duration_minutes=task.duration_minutes,
+        completed=task.completed,
+        user_id=current_user.id,
     )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
-    db.close()
-
-    return {
-        "message": "Tarea creada",
-        "task": serialize_task(new_task)
-    }
+    return new_task
 
 
-@app.get("/tasks/{task_id}")
-def get_task(task_id: int):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    db.close()
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
 
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
-    return serialize_task(task)
+    return task
 
 
-@app.put("/tasks/{task_id}")
-def update_task(task_id: int, updated_task: dict):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    updated_task: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
 
     if not task:
-        db.close()
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
-    task.title = updated_task.get("title", task.title)
-    task.due_date = updated_task.get("due_date", task.due_date)
-    task.priority = updated_task.get("priority", task.priority)
-    task.duration_minutes = updated_task.get(
-        "duration_minutes",
-        task.duration_minutes,
-    )
-    task.completed = updated_task.get("completed", task.completed)
+    update_data = updated_task.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
     db.commit()
     db.refresh(task)
-    db.close()
-
-    return {
-        "message": "Tarea actualizada",
-        "task": serialize_task(task)
-    }
+    return task
 
 
 @app.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == current_user.id,
+    ).first()
 
     if not task:
-        db.close()
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
     db.delete(task)
     db.commit()
-    db.close()
 
-    return {
-        "message": "Tarea eliminada",
-        "task": serialize_task(task)
-    }
+    return {"message": "Tarea eliminada"}
+
+
+@app.post("/sessions", response_model=SessionResponse)
+def create_session(
+    session: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_session = SessionModel(
+        user_id=current_user.id,
+        duration_minutes=session.duration_minutes,
+        mode=session.mode,
+        task_id=session.task_id,
+        task_title=session.task_title,
+        task_completed=session.task_completed,
+        away_minutes=session.away_minutes,
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+
+@app.get("/sessions", response_model=list[SessionResponse])
+def get_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id)
+        .order_by(SessionModel.id.desc())
+        .limit(50)
+        .all()
+    )
+    return sessions
+
+
+@app.get("/stats", response_model=StatsResponse)
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.user_id == current_user.id, SessionModel.mode == 'pomodoro')
+        .all()
+    )
+
+    total_sessions = len(sessions)
+    total_minutes = sum(s.duration_minutes for s in sessions)
+
+    light_sessions = sum(1 for s in sessions if (s.duration_minutes or 0) <= 15)
+    deep_sessions = total_sessions - light_sessions
+
+    streak = calculate_streak(sessions)
+
+    total_xp = total_minutes
+    xp = total_xp % 350
+    level = (total_xp // 350) + 1
+
+    return StatsResponse(
+        total_sessions=total_sessions,
+        total_minutes=total_minutes,
+        current_streak=streak,
+        xp=xp,
+        level=level,
+        light_sessions=light_sessions,
+        deep_sessions=deep_sessions,
+    )
+
+
+@app.get("/settings", response_model=SettingsResponse)
+def get_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        return SettingsResponse(data={})
+    return SettingsResponse(data=settings.data)
+
+
+@app.put("/settings", response_model=SettingsResponse)
+def update_settings(
+    settings_data: SettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    if not settings:
+        settings = UserSettings(user_id=current_user.id, data=settings_data.data)
+        db.add(settings)
+    else:
+        settings.data = settings_data.data
+    db.commit()
+    db.refresh(settings)
+    return SettingsResponse(data=settings.data)
+
+
+def calculate_streak(sessions: list) -> int:
+    if not sessions:
+        return 0
+
+    dates = set()
+    for s in sessions:
+        if s.created_at:
+            dates.add(s.created_at.date())
+
+    if not dates:
+        return 0
+
+    sorted_dates = sorted(dates, reverse=True)
+    streak = 1
+
+    today = datetime.now(timezone.utc).date()
+
+    if sorted_dates[0] < today:
+        last = sorted_dates[0]
+        if (today - last).days > 1:
+            return 0
+
+    for i in range(len(sorted_dates) - 1):
+        current = sorted_dates[i]
+        previous = sorted_dates[i + 1]
+        if (current - previous).days == 1:
+            streak += 1
+        else:
+            break
+
+    return streak
