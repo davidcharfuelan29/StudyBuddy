@@ -1,5 +1,4 @@
-const API_URL = (window.STUDYBUDDY_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, '');
-
+const API_URL = ""; 
 let isLogin = true;
 
 function togglePassword() {

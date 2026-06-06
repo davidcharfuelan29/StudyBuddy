@@ -4,14 +4,13 @@ from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text
 from datetime import datetime, timezone
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 
-from .database import SessionLocal, engine, Base
+from .database import SessionLocal, engine
 from .models import Task, User, Session as SessionModel, UserSettings
 from .schemas import (
     TaskCreate, TaskUpdate, TaskResponse,
@@ -51,49 +50,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"[StudyBuddy] Error al crear tablas: {e}")
-
-def ensure_missing_columns():
-    inspector = inspect(engine)
-    tables_info = {
-        "tasks": {
-            "due_date": "VARCHAR",
-            "priority": "VARCHAR DEFAULT 'media'",
-            "duration_minutes": "INTEGER DEFAULT 30",
-            "completed": "BOOLEAN DEFAULT FALSE",
-            "user_id": "INTEGER REFERENCES users(id)",
-        },
-        "sessions": {
-            "user_id": "INTEGER REFERENCES users(id)",
-            "duration_minutes": "INTEGER DEFAULT 25",
-            "mode": "VARCHAR DEFAULT 'pomodoro'",
-            "task_id": "INTEGER REFERENCES tasks(id)",
-            "task_title": "VARCHAR",
-            "task_completed": "BOOLEAN DEFAULT FALSE",
-            "away_minutes": "INTEGER DEFAULT 0",
-            "created_at": "VARCHAR",
-        },
-    }
-
-    with engine.begin() as connection:
-        for table_name, columns in tables_info.items():
-            if table_name not in inspector.get_table_names():
-                continue
-            existing = {c["name"] for c in inspector.get_columns(table_name)}
-            for col_name, definition in columns.items():
-                if col_name not in existing:
-                    connection.execute(
-                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {definition}")
-                    )
-
-try:
-    ensure_missing_columns()
-except Exception as e:
-    print(f"[StudyBuddy] Error en ensure_missing_columns: {e}")
 
 app.add_middleware(
     CORSMiddleware,

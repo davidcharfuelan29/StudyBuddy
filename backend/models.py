@@ -34,7 +34,7 @@ class Session(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     duration_minutes = Column(Integer, default=25)
     mode = Column(String, default="pomodoro")
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
     task_title = Column(String, nullable=True)
     task_completed = Column(Boolean, default=False)
     away_minutes = Column(Integer, default=0)
